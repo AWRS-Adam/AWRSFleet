@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fleet Inspector</title>
+<title>AWRS Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -20,6 +20,21 @@
   --radius:10px;--radius-sm:6px;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;min-height:100vh}
+
+/* AUTH */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0C447C 0%,#185FA5 60%,#2d7dd2 100%)}
+.auth-card{background:#fff;border-radius:16px;padding:32px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.auth-logo{text-align:center;margin-bottom:24px}
+.auth-logo-icon{width:56px;height:56px;background:var(--blue);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:10px}
+.auth-logo h1{font-size:20px;font-weight:700;color:var(--text)}
+.auth-logo p{font-size:13px;color:var(--text-sec);margin-top:2px}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:14px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:var(--text-sec)}
+.auth-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.auth-error{background:var(--red-light);border:1px solid var(--red-mid);color:var(--red);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;margin-bottom:12px;display:none}
+.auth-success{background:var(--green-light);border:1px solid var(--green-mid);color:var(--green);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;margin-bottom:12px;display:none}
+
+/* APP */
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
 .topbar-title{font-size:16px;font-weight:600}
 .topbar-sub{font-size:12px;color:var(--text-sec);margin-top:1px}
@@ -38,20 +53,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .badge.defect{background:var(--red-light);color:var(--red)}
 .badge.pending{background:var(--amber-light);color:var(--amber)}
 .badge.resolved{background:var(--blue-light);color:var(--blue)}
-.badge.due{background:var(--red-light);color:var(--red)}
-.badge.soon{background:var(--amber-light);color:var(--amber)}
 .badge.ok-maint{background:var(--green-light);color:var(--green)}
 .form-row{margin-bottom:12px}
 label.fl{font-size:13px;color:var(--text-sec);display:block;margin-bottom:4px;font-weight:500}
-input[type=text],input[type=email],input[type=number],select,textarea{width:100%;padding:9px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;appearance:none}
+input[type=text],input[type=email],input[type=number],input[type=password],select,textarea{width:100%;padding:9px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;appearance:none}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 textarea{resize:vertical}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 @media(max-width:520px){.grid2{grid-template-columns:1fr}.grid3{grid-template-columns:1fr 1fr}}
 .sec-head{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-hint);padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid var(--border)}
-.insp-item{display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:10px}
+.insp-item{padding:10px 0;border-bottom:1px solid var(--border)}
 .insp-item:last-child{border-bottom:none}
+.insp-item-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .insp-label{font-size:14px;flex:1;padding-top:2px}
 .radio-group{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .radio-group label{display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);white-space:nowrap}
@@ -59,6 +73,11 @@ textarea{resize:vertical}
 .radio-group label:has(input[value=ok]:checked){border-color:var(--green-mid);background:var(--green-light)}
 .radio-group label:has(input[value=defect]:checked){border-color:var(--red-mid);background:var(--red-light)}
 .defect-note{width:100%;margin-top:6px;padding:6px 10px;border:1px solid var(--red-mid);border-radius:var(--radius-sm);background:var(--red-light);color:var(--text);font-size:13px;font-family:inherit;display:none}
+.photo-row{margin-top:8px;display:none}
+.photo-row.visible{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.photo-thumb{width:60px;height:60px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer}
+.photo-add-btn{width:60px;height:60px;border:2px dashed var(--border-med);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;color:var(--text-hint);background:var(--bg);flex-shrink:0}
+.photo-add-btn:hover{border-color:var(--blue);color:var(--blue)}
 .alert-box{display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border-radius:var(--radius);margin-bottom:12px;font-size:14px}
 .alert-box.danger{background:var(--red-light);border:1px solid var(--red-mid);color:var(--red)}
 .alert-box.success{background:var(--green-light);border:1px solid var(--green-mid);color:var(--green)}
@@ -93,7 +112,6 @@ textarea{resize:vertical}
 .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:8px 0}
 .qr-wrap canvas{border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;background:#fff}
 .empty-state{text-align:center;padding:40px 16px;color:var(--text-sec);font-size:14px}
-.config-note{background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--amber);margin-bottom:16px}
 .search-wrap{position:relative;margin-bottom:12px}
 .search-wrap input{padding-left:32px}
 .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-hint);pointer-events:none}
@@ -109,31 +127,82 @@ textarea{resize:vertical}
 .maint-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:8px}
 .maint-row:last-child{border-bottom:none}
 .maint-name{font-size:14px;font-weight:500;flex:1}
-.maint-detail{font-size:12px;color:var(--text-sec);margin-top:2px}
-.interval-input{display:flex;align-items:center;gap:6px;font-size:13px}
-.interval-input input{width:80px;padding:5px 8px;font-size:13px}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
 .modal{background:var(--surface);border-radius:var(--radius);padding:20px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto}
 .modal-title{font-size:16px;font-weight:600;margin-bottom:16px}
+.photo-modal-img{width:100%;border-radius:var(--radius-sm);max-height:70vh;object-fit:contain}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.role-badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
+.role-admin{background:var(--purple-light);color:var(--purple);border:1px solid var(--purple-mid)}
+.role-gm{background:var(--blue-light);color:var(--blue);border:1px solid var(--blue-mid)}
+.user-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 </style>
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════════════════════════════════ AUTH -->
+<div id="auth-wrap" class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="data:image/png;base64,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" alt="Alloy Wheel Repair Specialists" style="width:180px;height:auto;margin-bottom:14px">
+      <h1>AWRS Fleet</h1>
+    </div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login')">Sign In</div>
+      <div class="auth-tab" onclick="switchAuthTab('register')">Create Account</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="auth-login">
+      <div class="auth-error" id="login-error"></div>
+      <div class="form-row"><label class="fl">Email</label><input type="email" id="login-email" placeholder="you@company.com" autocomplete="email"></div>
+      <div class="form-row"><label class="fl">Password</label><input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn primary full" id="login-btn" onclick="doLogin()">Sign In</button>
+      <div style="text-align:center;margin-top:12px"><button class="btn sm" style="border:none;background:none;color:var(--blue);font-size:13px" onclick="doForgotPassword()">Forgot password?</button></div>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="auth-register" style="display:none">
+      <div class="auth-error" id="register-error"></div>
+      <div class="auth-success" id="register-success"></div>
+      <div class="form-row"><label class="fl">Full Name</label><input type="text" id="reg-name" placeholder="Jane Smith"></div>
+      <div class="form-row"><label class="fl">Email</label><input type="email" id="reg-email" placeholder="you@company.com" autocomplete="email"></div>
+      <div class="form-row"><label class="fl">Password</label><input type="password" id="reg-password" placeholder="Min 6 characters" autocomplete="new-password"></div>
+      <div class="form-row">
+        <label class="fl">Your Location / Branch</label>
+        <select id="reg-location">
+          <option value="">— Select your location —</option>
+          <option>NY1</option><option>WCC</option><option>CT1</option><option>FL1</option>
+          <option>GA1</option><option>MD1</option><option>NJ1</option><option>OpCo</option>
+          <option>MO1</option><option>MO2</option><option>IL1</option><option>IN1</option>
+        </select>
+      </div>
+      <button class="btn primary full" id="register-btn" onclick="doRegister()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ APP -->
+<div id="app-wrap" style="display:none">
+
 <!-- HOME -->
 <div id="screen-home" class="screen active">
   <div class="topbar">
-    <div><div class="topbar-title">Fleet Inspector</div><div class="topbar-sub">DOT-style inspections</div></div>
+    <div>
+      <div class="topbar-title">AWRS Fleet</div>
+      <div class="topbar-sub" id="topbar-location">Loading…</div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center">
       <span id="sync-status" style="font-size:11px;color:var(--text-sec)"></span>
-      <button class="btn sm" onclick="showScreen('screen-admin')">Admin <span id="overdue-badge" class="overdue-count" style="display:none">0</span></button>
-      <button class="btn sm primary" onclick="showScreen('screen-add')">+ Add Unit</button>
+      <button class="btn sm" id="admin-btn" onclick="showScreen('screen-admin')" style="display:none">Admin <span id="overdue-badge" class="overdue-count" style="display:none">0</span></button>
+      <button class="btn sm" onclick="doSignOut()">Sign Out</button>
     </div>
   </div>
   <div class="content">
-    <div id="config-warn" class="config-note" style="display:none"><strong>Setup:</strong> Set <code>BASE_URL</code> to your hosted URL so QR codes work.</div>
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
-      <input type="text" id="search-input" placeholder="Search by unit ID, location (e.g. NY1), VIN, make..." oninput="renderFleet()">
+      <input type="text" id="search-input" placeholder="Search by unit ID, VIN, make…" oninput="renderFleet()">
     </div>
     <div class="filter-row">
       <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
@@ -147,27 +216,29 @@ textarea{resize:vertical}
   </div>
 </div>
 
-<!-- ADD UNIT -->
+<!-- ADD UNIT (admin only) -->
 <div id="screen-add" class="screen">
   <div class="topbar"><div class="topbar-title">Add Fleet Unit</div><button class="btn sm" onclick="showScreen('screen-home')">← Back</button></div>
   <div class="content">
     <div class="card">
       <div class="form-row"><label class="fl">Unit ID / Number</label><input type="text" id="add-id" placeholder="e.g. BOX-07"></div>
       <div class="form-row"><label class="fl">Unit Type</label>
-        <select id="add-type">
-          <option value="van">Van / Pickup</option>
-          <option value="trailer">Trailer</option>
-          <option value="heavy">Box Truck (10,000+ lbs)</option>
-        </select>
+        <select id="add-type"><option value="van">Van / Pickup</option><option value="trailer">Trailer</option><option value="heavy">Box Truck (10,000+ lbs)</option></select>
       </div>
       <div class="grid2">
         <div class="form-row"><label class="fl">Make / Model</label><input type="text" id="add-make"></div>
         <div class="form-row"><label class="fl">Year</label><input type="text" id="add-year"></div>
       </div>
       <div class="form-row"><label class="fl">VIN / Serial</label><input type="text" id="add-vin"></div>
-      <div class="form-row"><label class="fl">Location / Branch</label><input type="text" id="add-location"></div>
-      <div class="form-row"><label class="fl">Manager alert email</label><input type="email" id="add-email"></div>
-      <button class="btn primary full" onclick="addUnit()">Save &amp; Generate QR</button>
+      <div class="form-row"><label class="fl">Location / Branch</label>
+        <select id="add-location">
+          <option value="">— Select location —</option>
+          <option>NY1</option><option>WCC</option><option>CT1</option><option>FL1</option>
+          <option>GA1</option><option>MD1</option><option>NJ1</option><option>OpCo</option>
+          <option>MO1</option><option>MO2</option><option>IL1</option><option>IN1</option>
+        </select>
+      </div>
+      <button class="btn primary full" onclick="addUnit()">Save Unit</button>
     </div>
   </div>
 </div>
@@ -179,7 +250,7 @@ textarea{resize:vertical}
     <div class="card">
       <div class="qr-wrap">
         <canvas id="qr-canvas" width="220" height="220"></canvas>
-        <p style="font-size:13px;color:var(--text-sec);text-align:center;max-width:280px">Print and attach to unit. Tech scans to open the inspection form directly.</p>
+        <p style="font-size:13px;color:var(--text-sec);text-align:center;max-width:280px">Print and attach to unit. Scan to open the inspection form directly.</p>
         <p id="qr-url" style="font-size:11px;color:var(--text-hint);text-align:center;word-break:break-all;max-width:320px"></p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
           <button class="btn primary sm" onclick="downloadQR()">⬇ Download QR</button>
@@ -202,7 +273,7 @@ textarea{resize:vertical}
         <div class="form-row"><label class="fl">Technician name</label><input type="text" id="tech-name" placeholder="Your name"></div>
         <div class="form-row"><label class="fl">Date &amp; time</label><input type="text" id="insp-date" readonly></div>
       </div>
-      <div class="form-row"><label class="fl">Odometer <span style="font-size:12px;color:var(--text-hint)">(used to update maintenance tracking)</span></label><input type="number" id="insp-odo" placeholder="e.g. 84210" min="0"></div>
+      <div class="form-row"><label class="fl">Odometer <span style="font-size:12px;color:var(--text-hint)">(updates maintenance tracking)</span></label><input type="number" id="insp-odo" placeholder="e.g. 84210" min="0"></div>
       <div class="form-row">
         <label class="fl">GPS Location <span id="gps-status" style="font-size:12px;color:var(--text-hint)">— tap to capture</span></label>
         <button class="btn sm" onclick="captureGPS()" id="gps-btn">📍 Capture Location</button>
@@ -210,8 +281,8 @@ textarea{resize:vertical}
       </div>
     </div>
     <div id="insp-sections"></div>
-    <div class="form-row"><label class="fl">Additional notes</label><textarea id="insp-notes" rows="3" placeholder="Any other observations..."></textarea></div>
-    <button class="btn primary full" style="margin-top:8px;margin-bottom:32px" onclick="submitInspection()">Submit Inspection</button>
+    <div class="form-row"><label class="fl">Additional notes</label><textarea id="insp-notes" rows="3" placeholder="Any other observations…"></textarea></div>
+    <button class="btn primary full" style="margin-top:8px;margin-bottom:32px" id="submit-insp-btn" onclick="submitInspection()">Submit Inspection</button>
   </div>
 </div>
 
@@ -261,41 +332,25 @@ textarea{resize:vertical}
       <div class="tab active" onclick="switchTab('defects')">Defects <span id="defect-tab-count" class="overdue-count" style="display:none">0</span></div>
       <div class="tab" onclick="switchTab('maintenance')">Maintenance <span id="maint-tab-count" class="overdue-count" style="display:none">0</span></div>
       <div class="tab" onclick="switchTab('history')">History</div>
+      <div class="tab" onclick="switchTab('users')">Users</div>
       <div class="tab" onclick="switchTab('settings')">Settings</div>
     </div>
     <div id="tab-defects"><div id="admin-defects"></div><div id="no-defects" class="empty-state" style="display:none">✓ No open defects!</div></div>
     <div id="tab-maintenance" style="display:none"><div id="admin-maint"></div><div id="no-maint" class="empty-state" style="display:none">✓ All maintenance up to date!</div></div>
     <div id="tab-history" style="display:none"><div id="admin-history"></div><div id="no-history" class="empty-state" style="display:none">No inspections yet.</div></div>
+    <div id="tab-users" style="display:none"><div id="admin-users"></div></div>
     <div id="tab-settings" style="display:none">
-      <div class="card" style="margin-top:0;border-left:3px solid var(--blue)">
-        <p style="font-size:14px;font-weight:500;margin-bottom:4px">🗄 Supabase Setup</p>
-        <p style="font-size:13px;color:var(--text-sec);margin-bottom:12px">Run this SQL once in your Supabase dashboard → SQL Editor to create the required tables:</p>
-        <pre id="setup-sql" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:11px;overflow-x:auto;white-space:pre;line-height:1.5">create table if not exists fi_settings (key text primary key, value jsonb);
-create table if not exists fi_inspections (id text primary key, data jsonb, created_at timestamptz default now());
-create table if not exists fi_defect_log (log_id text primary key, data jsonb);
-create table if not exists fi_maint_log (unit_id text, item_id text, data jsonb, primary key(unit_id,item_id));
-create table if not exists fi_odometer (unit_id text primary key, data jsonb);
-alter table fi_settings enable row level security;
-alter table fi_inspections enable row level security;
-alter table fi_defect_log enable row level security;
-alter table fi_maint_log enable row level security;
-alter table fi_odometer enable row level security;
-create policy "anon all" on fi_settings for all using (true) with check (true);
-create policy "anon all" on fi_inspections for all using (true) with check (true);
-create policy "anon all" on fi_defect_log for all using (true) with check (true);
-create policy "anon all" on fi_maint_log for all using (true) with check (true);
-create policy "anon all" on fi_odometer for all using (true) with check (true);</pre>
-        <button class="btn sm primary" style="margin-top:8px" onclick="navigator.clipboard.writeText(document.getElementById('setup-sql').textContent).then(()=>alert('SQL copied to clipboard!'))">📋 Copy SQL</button>
-        <button class="btn sm" style="margin-top:8px;margin-left:6px" onclick="checkSupabaseTables()">🔍 Check Connection</button>
-        <div id="sb-check-result" style="margin-top:8px;font-size:13px"></div>
+      <div class="card" style="border-left:3px solid var(--blue)">
+        <p style="font-size:14px;font-weight:500;margin-bottom:4px">➕ Add Fleet Unit</p>
+        <button class="btn primary sm" onclick="showScreen('screen-add')">+ Add Unit</button>
       </div>
       <div class="card">
         <p style="font-size:14px;font-weight:500;margin-bottom:4px">Maintenance intervals</p>
-        <p style="font-size:13px;color:var(--text-sec);margin-bottom:14px">Set default intervals for all units. Whichever limit (miles or days) is hit first triggers a due alert.</p>
+        <p style="font-size:13px;color:var(--text-sec);margin-bottom:14px">Set default intervals. Whichever limit (miles or days) is hit first triggers a due alert.</p>
         <div id="interval-settings"></div>
         <button class="btn primary" style="margin-top:12px" onclick="saveIntervalSettings()">Save Intervals</button>
       </div>
-      <div class="card" style="margin-top:0">
+      <div class="card">
         <p style="font-size:14px;font-weight:500;margin-bottom:12px">Escalation contacts by location</p>
         <p style="font-size:13px;color:var(--text-sec);margin-bottom:16px">Unresolved defects escalate: <strong>Manager (Day 1) → Regional (Day 3) → Director (Day 7) → Executive (Day 14)</strong></p>
         <div id="escalation-settings"></div>
@@ -317,58 +372,146 @@ create policy "anon all" on fi_odometer for all using (true) with check (true);<
   </div>
 </div>
 
-<script>
-const BASE_URL = "";
+<!-- Photo Lightbox Modal -->
+<div id="photo-modal" class="modal-overlay" style="display:none" onclick="document.getElementById('photo-modal').style.display='none'">
+  <div class="modal" style="max-width:600px" onclick="event.stopPropagation()">
+    <img id="photo-modal-img" class="photo-modal-img" src="" alt="Inspection photo">
+    <div style="margin-top:10px;display:flex;justify-content:flex-end">
+      <button class="btn sm" onclick="document.getElementById('photo-modal').style.display='none'">Close</button>
+    </div>
+  </div>
+</div>
 
-// ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
+</div><!-- /app-wrap -->
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const BASE_URL = "";
 const SUPABASE_URL = "https://tlqxcpybsrolgsglwehr.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRscXhjcHlic3JvbGdzZ2x3ZWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjAyMTMsImV4cCI6MjA5NjU5NjIxM30.C6RNumDgJz75IcijCDtVk94KbGKCcibcMduNAJPZa_s";
+const ADMIN_EMAIL = "admin@awrs.com"; // ← Change to your admin email
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ─── SUPABASE SCHEMA BOOTSTRAP ────────────────────────────────────────────────
-// Tables needed (created once via Supabase dashboard or SQL):
-//   fi_settings  (key text PK, value jsonb)
-//   fi_inspections (id text PK, data jsonb, created_at timestamptz default now())
-//   fi_defect_log  (log_id text PK, data jsonb)
-//   fi_maint_log   (unit_id text, item_id text, data jsonb, PRIMARY KEY(unit_id,item_id))
-//   fi_odometer    (unit_id text PK, data jsonb)
-//
-// We'll auto-create them via RPC if the user has set up the helper function,
-// otherwise fall back gracefully.
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let currentUser = null, userProfile = null, userLocation = null, isAdmin = false;
+let fleet=[], inspections=[], defectLog=[], maintLog={}, maintIntervals={}, odometerData={}, escalationSettings={};
+let currentUnit=null, currentQRUnit=null, currentMaintUnit=null, activeFilter='all', gpsData=null, activeTab='defects';
+let pendingModalMaint=null;
+let inspectionPhotos = {}; // key: itemKey, value: [{url, path}]
+
+// ─── MAINTENANCE DEFINITIONS ──────────────────────────────────────────────────
+const MAINT_ITEMS = [
+  {id:"oil",        name:"Oil Change",           icon:"🛢️", defaultMiles:5000,  defaultDays:90,  types:["van","heavy"]},
+  {id:"tires",      name:"Tire Rotation",         icon:"🔄", defaultMiles:7500,  defaultDays:180, types:["van","heavy"]},
+  {id:"brakes",     name:"Brake Inspection",      icon:"🛑", defaultMiles:15000, defaultDays:365, types:["van","heavy"]},
+  {id:"air_filter", name:"Air Filter",            icon:"💨", defaultMiles:15000, defaultDays:365, types:["van","heavy"]},
+  {id:"cab_filter", name:"Cabin Air Filter",      icon:"🌬️", defaultMiles:15000, defaultDays:365, types:["van","heavy"]},
+  {id:"belts",      name:"Belts & Hoses",         icon:"⚙️", defaultMiles:30000, defaultDays:730, types:["van","heavy"]},
+  {id:"trans",      name:"Transmission Fluid",    icon:"🔧", defaultMiles:30000, defaultDays:730, types:["van","heavy"]},
+  {id:"coolant",    name:"Coolant Flush",          icon:"🌡️", defaultMiles:30000, defaultDays:730, types:["van","heavy"]},
+  {id:"comp_oil",   name:"Compressor Oil Change", icon:"🛢️", defaultMiles:0,     defaultDays:90,  types:["trailer"]},
+  {id:"gen_oil",    name:"Generator Oil Change",  icon:"⚡", defaultMiles:0,     defaultDays:90,  types:["trailer"]},
+];
+const ESCALATION_LEVELS=[
+  {label:'Manager',   days:1,  cls:'esc-1'},
+  {label:'Regional',  days:3,  cls:'esc-2'},
+  {label:'Director',  days:7,  cls:'esc-3'},
+  {label:'Executive', days:14, cls:'esc-4'}
+];
+const LOCATIONS=['NY1','WCC','CT1','FL1','GA1','MD1','NJ1','OpCo','MO1','MO2','IL1','IN1'];
+const ITEMS={
+  van:{'Exterior':['Windshield / glass','Mirrors','Lights (head/tail/brake/turn)','Horn','Wipers & washers','Body damage / rust','Fuel cap','Mud flaps'],'Tires & Wheels':['Tire condition (tread depth)','Tire inflation','Lug nuts / wheel seals','Spare tire & equipment'],'Under Hood':['Engine oil level','Coolant level','Power steering fluid','Brake fluid','Belts & hoses','Battery & cables'],'Brakes & Steering':['Brake pedal feel','Parking brake','Steering play','ABS indicator'],'Interior / Safety':['Seatbelts','Fire extinguisher','First aid kit','Emergency triangles','Registration & insurance docs']},
+  trailer:{'Structural':['Frame / rails','Flooring','Side walls','Roof / tarps','Doors & latches','Landing gear'],'Lights & Electrical':['Running lights','Brake lights','Turn signals','Marker lights','Electrical connector / pigtail'],'Brakes':['Brake adjustment','Brake pads / drums','Breakaway battery','Air lines / glad hands'],'Tires & Wheels':['Tire condition (tread depth)','Tire inflation','Hub oil seals','Lug nuts / fasteners','Spare tire'],'Coupling':['King pin / fifth wheel','Safety chains','Air / electrical connections','Landing legs / pads'],'Safety':['Reflective tape / conspicuity','DOT number / placards','Load securement / straps','Fire extinguisher']},
+  heavy:{'Engine & Fluids':['Engine oil level','Coolant level','Power steering fluid','Brake fluid','Windshield washer fluid','Belts & hoses','Battery & cables','DEF level (if equipped)'],'Exterior':['Windshield / glass','All mirrors (driver, passenger, curb)','Headlights & high beams','Tail lights & brake lights','Turn signals (front & rear)','Marker / clearance lights','Horn','Wipers & washers','Body panels / rust / damage','Fuel tank & cap','Mud flaps','Bumpers & tow hooks'],'Tires & Wheels':['Front tire condition (tread & sidewall)','Rear tire condition (tread & sidewall)','Front tire inflation','Rear tire inflation','Lug nuts & hub seals','Spare tire & changing equipment'],'Brakes & Steering':['Hydraulic brake pedal feel & travel','Parking / emergency brake','Brake pad thickness (if visible)','ABS warning light','Steering wheel free play','Power steering operation'],'Box Body':['Roll-up or swing door operation & seals','Door locks & latches','Box floor condition (no soft spots)','Box walls & ceiling integrity','Rear step bumper & safety markings','Exterior lighting on box (if any)','Cargo tie-down anchor points'],'Mobile Unit / Equipment Inside':['Equipment secured & not shifting','Power inverter / generator operation','Internal lighting functional','HVAC or climate control (if equipped)','Electrical panel & wiring condition','Water lines / tanks (if equipped) — no leaks','Tool & supply inventory secured','Drawers, cabinets & shelves latched'],'Cab Interior':['Seatbelts functional','Dash warning lights — none active at startup','Gauges (oil pressure, temp, voltage) in range','Fuel level adequate for shift','Interior lights','Horn accessible'],'Safety & Compliance':['Fire extinguisher present & charged','First aid kit present & stocked','Emergency triangles / flares (3 required)','Reflective vest(s) present','Registration & insurance documents in cab','DOT number visible on exterior','GVWR placard legible']}
+};
+
+const PRELOADED_FLEET=[{"id":"2348FW","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM8KKB31042","location":"NY1"},{"id":"2348FX","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM6KKB31041","location":"NY1"},{"id":"2348G2","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM8KKB31039","location":"NY1"},{"id":"2348G6","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM1KKB31027","location":"NY1"},{"id":"2348G8","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM2KKB31036","location":"NY1"},{"id":"2348G9","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM0KKB31035","location":"NY1"},{"id":"2348GD","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM2KKB38407","location":"NY1"},{"id":"2348GF","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM5KKB31032","location":"NY1"},{"id":"2348GG","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM3KKB31031","location":"NY1"},{"id":"2348GH","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM1KKB31030","location":"NY1"},{"id":"23SNV4","type":"van","make":"Mercedes-Benz Sprinter 2500","year":"2021","vin":"W1W40BHY5MT044222","location":"NY1"},{"id":"23T8T5","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2021","vin":"1FDRS6ZG8MKA84143","location":"NY1"},{"id":"23V7XK","type":"van","make":"Ford Transit Connect","year":"2021","vin":"NM0LS6E2XM1489184","location":"NY1"},{"id":"23WM5T","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C80MKA01472","location":"NY1"},{"id":"249J58","type":"trailer","make":"Trailer","year":"2017","vin":"5RTBE0812HD061019","location":"NY1"},{"id":"249J5B","type":"trailer","make":"Trailer","year":"2012","vin":"16HPB1210CP083048","location":"NY1"},{"id":"249J5C","type":"trailer","make":"Trailer","year":"2004","vin":"1W4200J2X48005019","location":"NY1"},{"id":"249J5D","type":"trailer","make":"Trailer","year":"2014","vin":"575GB2021EP094328","location":"NY1"},{"id":"252LSW","type":"heavy","make":"Mercedes-Benz Sprinter 3500XD","year":"2019","vin":"WDAPF4CDXKN026343","location":"NY1"},{"id":"2538CV","type":"heavy","make":"Mercedes-Benz Sprinter 3500XD","year":"2020","vin":"W1X8E33Y9LN125206","location":"NY1"},{"id":"2552WP","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C88MKA52654","location":"NY1"},{"id":"25Q4T9","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FKXNDC43512","location":"NY1"},{"id":"25Q4TB","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK8NDC43508","location":"NY1"},{"id":"265596","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FK6PDD09945","location":"NY1"},{"id":"26TCPW","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG7PE540562","location":"NY1"},{"id":"257WNL","type":"van","make":"Ford Transit-250 Cargo","year":"2022","vin":"1FTBR1C85NKA05342","location":"WCC"},{"id":"26TCPT","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG3PE540560","location":"WCC"},{"id":"27DT44","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBGXRE148341","location":"WCC"},{"id":"27F4XR","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2024","vin":"1FDBF6Z81RKA05188","location":"WCC"},{"id":"27FCKQ","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG1PE540556","location":"WCC"},{"id":"22H26C","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2015","vin":"1FDWS8ZM1FKA80250","location":"CT1"},{"id":"23TV8L","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2021","vin":"1FDBF6Z80MKA15705","location":"CT1"},{"id":"252KZJ","type":"van","make":"Isuzu NPR","year":"2022","vin":"JALC4W168N7013843","location":"CT1"},{"id":"254QHQ","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C82MKA48129","location":"CT1"},{"id":"257WH5","type":"van","make":"Ford Transit-250 Cargo","year":"2022","vin":"1FTBR1C84NKA34542","location":"CT1"},{"id":"257WNZ","type":"van","make":"Ford Transit-250 Cargo","year":"2022","vin":"1FTBR1C88NKA19896","location":"CT1"},{"id":"26RV7W","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN0RDD13129","location":"CT1"},{"id":"27DT7N","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C81RKA12536","location":"CT1"},{"id":"22H27Q","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2017","vin":"1FDBF8ZM0HKA23009","location":"FL1"},{"id":"23963W","type":"van","make":"Ford F-250","year":"2019","vin":"1FTBF2B66KEE81186","location":"FL1"},{"id":"23NT83","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2020","vin":"1FDBF6Z89LKB75824","location":"FL1"},{"id":"24D4GD","type":"trailer","make":"Trailer","year":"2012","vin":"53NBE1222C1006982","location":"FL1"},{"id":"24D4GJ","type":"trailer","make":"Trailer","year":"2013","vin":"5NHUEH220DU217185","location":"FL1"},{"id":"25Q4SV","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK3NDC43514","location":"FL1"},{"id":"25Q4T7","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK0NDC43504","location":"FL1"},{"id":"26B6H3","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FK2PDD26645","location":"FL1"},{"id":"26TCQ9","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG0PE540578","location":"FL1"},{"id":"27DT47","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG4RE148335","location":"FL1"},{"id":"27DT4B","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG6RE148336","location":"FL1"},{"id":"27DT7X","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C81RKA10415","location":"FL1"},{"id":"282RW2","type":"trailer","make":"Trailer","year":"2004","vin":"48FCF162741011690","location":"FL1"},{"id":"282RW7","type":"trailer","make":"Trailer","year":"2012","vin":"5NHUJE429CU216866","location":"FL1"},{"id":"29N4R9","type":"van","make":"Mercedes-Benz Metris","year":"2020","vin":"WD3PG3EA4L3643588","location":"FL1"},{"id":"22H2FC","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2017","vin":"1FDBF8ZM5HKA23006","location":"GA1"},{"id":"23T5VP","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C84MKA73629","location":"GA1"},{"id":"23T5W6","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C80MKA73630","location":"GA1"},{"id":"247H45","type":"trailer","make":"Trailer","year":"2013","vin":"5NHUCM424DU217140","location":"GA1"},{"id":"252D4K","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C80MKA52650","location":"GA1"},{"id":"2552XN","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C85MKA66687","location":"GA1"},{"id":"2577V9","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE70NF192563","location":"GA1"},{"id":"26RV7N","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN9RDD13131","location":"GA1"},{"id":"26TCN5","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG8PE547939","location":"GA1"},{"id":"26WBSS","type":"van","make":"Chevrolet Silverado 2500HD","year":"2024","vin":"1GC0WLE76RF202731","location":"GA1"},{"id":"26WBSZ","type":"van","make":"Chevrolet Silverado 2500HD","year":"2024","vin":"1GC0WLE70RF202417","location":"GA1"},{"id":"282RVV","type":"trailer","make":"Trailer","year":"2018","vin":"5NHUCM423JU218727","location":"GA1"},{"id":"22KPRT","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2017","vin":"1FDBF8ZM8HKB45844","location":"MD1"},{"id":"22KZ9C","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2017","vin":"1FDRS8ZM7HKB00601","location":"MD1"},{"id":"22LBGV","type":"van","make":"Ford F-250","year":"2018","vin":"1FTBF2A67JEB22476","location":"MD1"},{"id":"22S3BR","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2018","vin":"1FDRS8ZM1JKA51398","location":"MD1"},{"id":"23S387","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE78MF271087","location":"MD1"},{"id":"23S38C","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE79MF270966","location":"MD1"},{"id":"248KLR","type":"trailer","make":"Trailer","year":"2013","vin":"5NHUCM428DU217108","location":"MD1"},{"id":"248KLZ","type":"trailer","make":"Trailer","year":"2015","vin":"5NHUCM420FU217624","location":"MD1"},{"id":"26TCQ4","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG8PE540568","location":"MD1"},{"id":"26TCQ6","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG8PE540571","location":"MD1"},{"id":"26WBSP","type":"van","make":"Chevrolet Silverado 2500HD","year":"2024","vin":"1GC0WLE78RF202455","location":"MD1"},{"id":"27DT7P","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C82RKA13291","location":"MD1"},{"id":"2845ZN","type":"heavy","make":"Ford Transit-350 Cargo","year":"2023","vin":"1FTBW3X85PKA35846","location":"MD1"},{"id":"22H27T","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2017","vin":"1FDBF8ZM9HKA23008","location":"NJ1"},{"id":"22JV79","type":"van","make":"Chevrolet Express 3500","year":"2015","vin":"1GB3G4CG2F1268001","location":"NJ1"},{"id":"23T8RX","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2021","vin":"1FDRS6ZG4MKA79733","location":"NJ1"},{"id":"249J57","type":"trailer","make":"Trailer","year":"2012","vin":"16HPB1210CP083047","location":"NJ1"},{"id":"252X4Z","type":"heavy","make":"Mercedes-Benz Sprinter 3500XD","year":"2020","vin":"W1X8E33Y8LN111569","location":"NJ1"},{"id":"25K9P4","type":"heavy","make":"Ford E-350 Cutaway","year":"2021","vin":"1FDWE3FN8MDC41377","location":"NJ1"},{"id":"25Q4GM","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK3NDC43500","location":"NJ1"},{"id":"25Q4SP","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK4NDC43506","location":"NJ1"},{"id":"26558X","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FK4PDD09944","location":"NJ1"},{"id":"26B6J7","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FK4PDD26646","location":"NJ1"},{"id":"26GLRD","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FK6PDD26647","location":"NJ1"},{"id":"26TCPZ","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG2PE540565","location":"NJ1"},{"id":"26TZNQ","type":"heavy","make":"Ford E-350 Cutaway","year":"2024","vin":"1FDWE3FN7RDD15668","location":"NJ1"},{"id":"27DT7R","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C88RKA13327","location":"NJ1"},{"id":"27F4XG","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2024","vin":"1FDBF6Z83RKA05130","location":"NJ1"},{"id":"247H48","type":"trailer","make":"Trailer","year":"2015","vin":"53NBE1221F1033739","location":"OpCo"},{"id":"27F4XH","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2024","vin":"1FDBF6Z82RKA05247","location":"OpCo"},{"id":"27F4XS","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2024","vin":"1FDBF6Z86RKA04859","location":"OpCo"},{"id":"27F4XZ","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2024","vin":"1FDBF6Z89RKA05102","location":"OpCo"},{"id":"282RVX","type":"trailer","make":"Trailer","year":"2017","vin":"5NHUCM427HU218482","location":"OpCo"},{"id":"282RVZ","type":"trailer","make":"Trailer","year":"2017","vin":"5NHUCM428HU218488","location":"OpCo"},{"id":"23S377","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE78MF274801","location":"MO1"},{"id":"23S37V","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE73MF271501","location":"MO1"},{"id":"23T5VV","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C87MKA94880","location":"MO1"},{"id":"2577VM","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE7XNF192635","location":"MO1"},{"id":"25Q4SZ","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK8NDC43511","location":"MO1"},{"id":"27DT4C","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG8RE148337","location":"MO1"},{"id":"282RW4","type":"trailer","make":"Trailer","year":"2017","vin":"53NBE1223H1052294","location":"MO1"},{"id":"282RW6","type":"trailer","make":"Trailer","year":"2015","vin":"53NBE1225F1029919","location":"MO1"},{"id":"23S37F","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE71MF271707","location":"MO2"},{"id":"23V587","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C85MKA19272","location":"MO2"},{"id":"24D4GC","type":"trailer","make":"Trailer","year":"2015","vin":"5NHUEH221FU217653","location":"MO2"},{"id":"25Q4SW","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK1NDC43513","location":"MO2"},{"id":"26TCPQ","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG7PE540559","location":"MO2"},{"id":"27DT45","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG2RE148334","location":"MO2"},{"id":"22H2F3","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2015","vin":"1FDWS8ZM7FKA80253","location":"IL1"},{"id":"23QT6F","type":"van","make":"Ford Transit-250 Cargo","year":"2020","vin":"1FTBR1C81LKB29105","location":"IL1"},{"id":"23V55W","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2021","vin":"1FDBF6Z82MKA15706","location":"IL1"},{"id":"257WNC","type":"van","make":"Ford Transit-250 Cargo","year":"2022","vin":"1FTBR1C83NKA05341","location":"IL1"},{"id":"25K9W6","type":"heavy","make":"Chevrolet 4500 LCF Gas","year":"2022","vin":"54DCDW1D3NS200335","location":"IL1"},{"id":"25Q4SX","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK5NDC43501","location":"IL1"},{"id":"23T5VL","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C82MKA89019","location":"IN1"},{"id":"252D4D","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C84MKA52649","location":"IN1"},{"id":"257WHZ","type":"van","make":"Ford Transit-250 Cargo","year":"2022","vin":"1FTBR1C80NKA62192","location":"IN1"},{"id":"25K9W8","type":"heavy","make":"Chevrolet 4500 LCF Gas","year":"2022","vin":"54DCDW1D5NS200336","location":"IN1"},{"id":"25Q4T4","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK2NDC43505","location":"IN1"},{"id":"263KQM","type":"heavy","make":"Chevrolet 4500 LCF Gas","year":"2022","vin":"54DCDW1D4NS200442","location":"IN1"},{"id":"26RGCJ","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN5RDD11215","location":"IN1"},{"id":"26RV7K","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN7RDD13130","location":"IN1"},{"id":"26TCPL","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG4PE540552","location":"IN1"},{"id":"27DT43","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG8RE148340","location":"IN1"},{"id":"27DT7M","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C86RKA12760","location":"IN1"},{"id":"27FCL3","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG3PE540557","location":"IN1"}];
+
+// ─── AUTH UI ──────────────────────────────────────────────────────────────────
+function switchAuthTab(tab){
+  document.getElementById('auth-login').style.display=tab==='login'?'block':'none';
+  document.getElementById('auth-register').style.display=tab==='register'?'block':'none';
+  document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('active',['login','register'][i]===tab));
+}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-password').value;
+  const btn=document.getElementById('login-btn');
+  const err=document.getElementById('login-error');
+  err.style.display='none';
+  btn.innerHTML='<span class="spinner"></span> Signing in…';btn.disabled=true;
+  const {error}=await sb.auth.signInWithPassword({email,password:pass});
+  btn.innerHTML='Sign In';btn.disabled=false;
+  if(error){err.textContent=error.message;err.style.display='block';}
+}
+
+async function doRegister(){
+  const name=document.getElementById('reg-name').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const pass=document.getElementById('reg-password').value;
+  const loc=document.getElementById('reg-location').value;
+  const btn=document.getElementById('register-btn');
+  const err=document.getElementById('register-error');
+  const suc=document.getElementById('register-success');
+  err.style.display='none';suc.style.display='none';
+  if(!name||!email||!pass||!loc){err.textContent='Please fill in all fields.';err.style.display='block';return;}
+  if(pass.length<6){err.textContent='Password must be at least 6 characters.';err.style.display='block';return;}
+  btn.innerHTML='<span class="spinner"></span> Creating account…';btn.disabled=true;
+  const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{full_name:name,location:loc,role:'gm'}}});
+  btn.innerHTML='Create Account';btn.disabled=false;
+  if(error){err.textContent=error.message;err.style.display='block';return;}
+  suc.textContent='Account created! Check your email to confirm, then sign in.';suc.style.display='block';
+}
+
+async function doForgotPassword(){
+  const email=prompt('Enter your email address:');
+  if(!email) return;
+  const {error}=await sb.auth.resetPasswordForEmail(email);
+  if(error) alert('Error: '+error.message);
+  else alert('Password reset email sent!');
+}
+
+async function doSignOut(){
+  await sb.auth.signOut();
+  location.reload();
+}
+
+// ─── AUTH STATE ───────────────────────────────────────────────────────────────
+sb.auth.onAuthStateChange(async(event,session)=>{
+  if(session?.user){
+    currentUser=session.user;
+    const meta=currentUser.user_metadata||{};
+    userProfile={name:meta.full_name||currentUser.email,email:currentUser.email,location:meta.location||'',role:meta.role||'gm'};
+    isAdmin=(currentUser.email===ADMIN_EMAIL);
+    userLocation=isAdmin?null:userProfile.location;
+    document.getElementById('auth-wrap').style.display='none';
+    document.getElementById('app-wrap').style.display='block';
+    document.getElementById('topbar-location').textContent=isAdmin?'Admin — All Locations':(userProfile.name+' · '+(userLocation||''));
+    if(isAdmin) document.getElementById('admin-btn').style.display='inline-flex';
+    await initApp();
+  } else {
+    document.getElementById('auth-wrap').style.display='flex';
+    document.getElementById('app-wrap').style.display='none';
+  }
+});
+
+// ─── SYNC STATUS ──────────────────────────────────────────────────────────────
+let _syncTimer=null;
+function showSyncStatus(msg,type='info'){
+  const el=document.getElementById('sync-status');if(!el)return;
+  el.textContent=msg;el.style.color=type==='error'?'var(--red)':type==='ok'?'var(--green)':'var(--text-sec)';
+  clearTimeout(_syncTimer);if(type!=='loading')_syncTimer=setTimeout(()=>{el.textContent='';},3000);
+}
 
 // ─── LOCAL FALLBACK ───────────────────────────────────────────────────────────
 function gs(k){try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;}}
 function ss(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 
-// ─── SYNC STATUS UI ───────────────────────────────────────────────────────────
-let _syncTimer=null;
-function showSyncStatus(msg,type='info'){
-  let el=document.getElementById('sync-status');
-  if(!el) return;
-  el.textContent=msg;
-  el.style.color=type==='error'?'var(--red)':type==='ok'?'var(--green)':'var(--text-sec)';
-  clearTimeout(_syncTimer);
-  if(type!=='loading') _syncTimer=setTimeout(()=>{el.textContent='';},3000);
-}
-
-// ─── SUPABASE DATA LAYER ──────────────────────────────────────────────────────
-async function sbGetSetting(key){
-  try{
-    const {data,error}=await sb.from('fi_settings').select('value').eq('key',key).maybeSingle();
-    if(error) throw error;
-    return data?data.value:null;
-  }catch(e){return gs('fi-sb-'+key);}
-}
-async function sbSetSetting(key,value){
-  try{
-    ss('fi-sb-'+key,value);
-    const {error}=await sb.from('fi_settings').upsert({key,value},{onConflict:'key'});
-    if(error) throw error;
-  }catch(e){console.warn('sbSetSetting fallback:',e);}
-}
-
-async function sbLoadAll(){
+// ─── DATA LOAD ────────────────────────────────────────────────────────────────
+async function initApp(){
   showSyncStatus('⟳ Syncing…','loading');
+  fleet=[...PRELOADED_FLEET];
   try{
     const [settingsRes,inspsRes,defectsRes,maintRes,odoRes]=await Promise.all([
       sb.from('fi_settings').select('key,value'),
@@ -377,274 +520,168 @@ async function sbLoadAll(){
       sb.from('fi_maint_log').select('unit_id,item_id,data'),
       sb.from('fi_odometer').select('unit_id,data'),
     ]);
-
-    // Settings → escalation, maintIntervals, addedUnits, emails
     if(settingsRes.data){
       const kv={};settingsRes.data.forEach(r=>{kv[r.key]=r.value;});
       if(kv['escalation']) escalationSettings=kv['escalation'];
       if(kv['maint_intervals']) maintIntervals=kv['maint_intervals'];
-      if(kv['fleet_added']){
-        const added=kv['fleet_added']||[];
-        added.forEach(u=>{if(!fleet.find(p=>p.id===u.id)) fleet.push(u);});
-      }
-      if(kv['fleet_emails']){
-        kv['fleet_emails'].forEach(e=>{const f=fleet.find(p=>p.id===e.id);if(f) f.email=e.email;});
-      }
+      if(kv['fleet_added']){kv['fleet_added'].forEach(u=>{if(!fleet.find(p=>p.id===u.id)) fleet.push(u);});}
     }
-
-    // Inspections
     if(inspsRes.data) inspections=inspsRes.data.map(r=>r.data);
-
-    // Defect log
     if(defectsRes.data) defectLog=defectsRes.data.map(r=>r.data);
-
-    // Maint log
-    if(maintRes.data){
-      maintLog={};
-      maintRes.data.forEach(r=>{
-        if(!maintLog[r.unit_id]) maintLog[r.unit_id]={};
-        maintLog[r.unit_id][r.item_id]=r.data;
-      });
-    }
-
-    // Odometer
-    if(odoRes.data){
-      odometerData={};
-      odoRes.data.forEach(r=>{odometerData[r.unit_id]=r.data;});
-    }
-
+    if(maintRes.data){maintLog={};maintRes.data.forEach(r=>{if(!maintLog[r.unit_id])maintLog[r.unit_id]={};maintLog[r.unit_id][r.item_id]=r.data;});}
+    if(odoRes.data){odometerData={};odoRes.data.forEach(r=>{odometerData[r.unit_id]=r.data;});}
     showSyncStatus('✓ Synced','ok');
   }catch(e){
-    console.error('Supabase load error:',e);
-    showSyncStatus('⚠ Offline — using local data','error');
-    // Fall back to localStorage
-    const added=gs('fi-fleet-added')||[];
-    added.forEach(u=>{if(!fleet.find(p=>p.id===u.id)) fleet.push(u);});
-    (gs('fi-fleet-emails')||[]).forEach(e=>{const f=fleet.find(p=>p.id===e.id);if(f) f.email=e.email;});
-    inspections=gs('fi-inspections')||[];
-    defectLog=gs('fi-defect-log')||[];
-    maintLog=gs('fi-maint-log')||{};
-    maintIntervals=gs('fi-maint-intervals')||{};
-    odometerData=gs('fi-odometer')||{};
-    escalationSettings=gs('fi-escalation')||{};
+    console.error('Load error:',e);showSyncStatus('⚠ Offline','error');
+    inspections=gs('fi-inspections')||[];defectLog=gs('fi-defect-log')||[];
+    maintLog=gs('fi-maint-log')||{};maintIntervals=gs('fi-maint-intervals')||{};
+    odometerData=gs('fi-odometer')||{};escalationSettings=gs('fi-escalation')||{};
   }
-}
-
-async function sbSaveSettings(){
-  const added=fleet.filter(u=>!PRELOADED_FLEET.find(p=>p.id===u.id));
-  const emails=fleet.filter(u=>u.email).map(u=>({id:u.id,email:u.email}));
-  // Local backup
-  ss('fi-fleet-added',added);ss('fi-fleet-emails',emails);
-  ss('fi-maint-intervals',maintIntervals);ss('fi-escalation',escalationSettings);
-  // Remote
-  try{
-    await Promise.all([
-      sb.from('fi_settings').upsert([
-        {key:'fleet_added',value:added},
-        {key:'fleet_emails',value:emails},
-        {key:'maint_intervals',value:maintIntervals},
-        {key:'escalation',value:escalationSettings},
-      ],{onConflict:'key'}),
-    ]);
-  }catch(e){console.warn('sbSaveSettings error:',e);}
-}
-
-async function sbSaveInspection(record){
-  ss('fi-inspections',inspections);
-  try{
-    const {error}=await sb.from('fi_inspections').upsert({id:record.id,data:record},{onConflict:'id'});
-    if(error) throw error;
-  }catch(e){console.warn('sbSaveInspection error:',e);}
-}
-
-async function sbSaveDefectLog(){
-  ss('fi-defect-log',defectLog);
-  try{
-    const rows=defectLog.map(d=>({log_id:d.logId,data:d}));
-    const {error}=await sb.from('fi_defect_log').upsert(rows,{onConflict:'log_id'});
-    if(error) throw error;
-  }catch(e){console.warn('sbSaveDefectLog error:',e);}
-}
-
-async function sbSaveMaintLog(unitId,itemId){
-  ss('fi-maint-log',maintLog);
-  try{
-    const data=(maintLog[unitId]||{})[itemId];
-    if(!data) return;
-    const {error}=await sb.from('fi_maint_log').upsert({unit_id:unitId,item_id:itemId,data},{onConflict:'unit_id,item_id'});
-    if(error) throw error;
-  }catch(e){console.warn('sbSaveMaintLog error:',e);}
-}
-
-async function sbSaveOdometer(unitId){
-  ss('fi-odometer',odometerData);
-  try{
-    const data=odometerData[unitId];
-    if(!data) return;
-    const {error}=await sb.from('fi_odometer').upsert({unit_id:unitId,data},{onConflict:'unit_id'});
-    if(error) throw error;
-  }catch(e){console.warn('sbSaveOdometer error:',e);}
-}
-
-// ─── MAINTENANCE DEFINITIONS ──────────────────────────────────────────────────
-const MAINT_ITEMS = [
-  {id:'oil',        name:'Oil Change',          icon:'🛢️',  defaultMiles:5000,  defaultDays:90},
-  {id:'tires',      name:'Tire Rotation',        icon:'🔄',  defaultMiles:7500,  defaultDays:180},
-  {id:'brakes',     name:'Brake Inspection',     icon:'🛑',  defaultMiles:15000, defaultDays:365},
-  {id:'air_filter', name:'Air Filter',           icon:'💨',  defaultMiles:15000, defaultDays:365},
-  {id:'cab_filter', name:'Cabin Air Filter',     icon:'🌬️',  defaultMiles:15000, defaultDays:365},
-  {id:'belts',      name:'Belts & Hoses',        icon:'⚙️',  defaultMiles:30000, defaultDays:730},
-  {id:'trans',      name:'Transmission Fluid',   icon:'🔧',  defaultMiles:30000, defaultDays:730},
-  {id:'coolant',    name:'Coolant Flush',         icon:'🌡️',  defaultMiles:30000, defaultDays:730},
-];
-
-const ESCALATION_LEVELS = [
-  {label:'Manager',   days:1,  cls:'esc-1'},
-  {label:'Regional',  days:3,  cls:'esc-2'},
-  {label:'Director',  days:7,  cls:'esc-3'},
-  {label:'Executive', days:14, cls:'esc-4'}
-];
-const LOCATIONS = ['NY1','WCC','CT1','FL1','GA1','MD1','NJ1','OpCo','MO1','MO2','IL1','IN1'];
-
-const ITEMS = {
-  van:{'Exterior':['Windshield / glass','Mirrors','Lights (head/tail/brake/turn)','Horn','Wipers & washers','Body damage / rust','Fuel cap','Mud flaps'],'Tires & Wheels':['Tire condition (tread depth)','Tire inflation','Lug nuts / wheel seals','Spare tire & equipment'],'Under Hood':['Engine oil level','Coolant level','Power steering fluid','Brake fluid','Belts & hoses','Battery & cables'],'Brakes & Steering':['Brake pedal feel','Parking brake','Steering play','ABS indicator'],'Interior / Safety':['Seatbelts','Fire extinguisher','First aid kit','Emergency triangles','Registration & insurance docs']},
-  trailer:{'Structural':['Frame / rails','Flooring','Side walls','Roof / tarps','Doors & latches','Landing gear'],'Lights & Electrical':['Running lights','Brake lights','Turn signals','Marker lights','Electrical connector / pigtail'],'Brakes':['Brake adjustment','Brake pads / drums','Breakaway battery','Air lines / glad hands'],'Tires & Wheels':['Tire condition (tread depth)','Tire inflation','Hub oil seals','Lug nuts / fasteners','Spare tire'],'Coupling':['King pin / fifth wheel','Safety chains','Air / electrical connections','Landing legs / pads'],'Safety':['Reflective tape / conspicuity','DOT number / placards','Load securement / straps','Fire extinguisher']},
-  heavy:{'Engine & Fluids':['Engine oil level','Coolant level','Power steering fluid','Brake fluid','Windshield washer fluid','Belts & hoses','Battery & cables','DEF level (if equipped)'],'Exterior':['Windshield / glass','All mirrors (driver, passenger, curb)','Headlights & high beams','Tail lights & brake lights','Turn signals (front & rear)','Marker / clearance lights','Horn','Wipers & washers','Body panels / rust / damage','Fuel tank & cap','Mud flaps','Bumpers & tow hooks'],'Tires & Wheels':['Front tire condition (tread & sidewall)','Rear tire condition (tread & sidewall)','Front tire inflation','Rear tire inflation','Lug nuts & hub seals','Spare tire & changing equipment'],'Brakes & Steering':['Hydraulic brake pedal feel & travel','Parking / emergency brake','Brake pad thickness (if visible)','ABS warning light','Steering wheel free play','Power steering operation'],'Box Body':['Roll-up or swing door operation & seals','Door locks & latches','Box floor condition (no soft spots)','Box walls & ceiling integrity','Rear step bumper & safety markings','Exterior lighting on box (if any)','Cargo tie-down anchor points'],'Mobile Unit / Equipment Inside':['Equipment secured & not shifting','Power inverter / generator operation','Internal lighting functional','HVAC or climate control (if equipped)','Electrical panel & wiring condition','Water lines / tanks (if equipped) — no leaks','Tool & supply inventory secured','Drawers, cabinets & shelves latched'],'Cab Interior':['Seatbelts functional','Dash warning lights — none active at startup','Gauges (oil pressure, temp, voltage) in range','Fuel level adequate for shift','Interior lights','Horn accessible'],'Safety & Compliance':['Fire extinguisher present & charged','First aid kit present & stocked','Emergency triangles / flares (3 required)','Reflective vest(s) present','Registration & insurance documents in cab','DOT number visible on exterior','GVWR placard legible']}
-};
-
-const PRELOADED_FLEET = [{"id":"2348FW","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM8KKB31042","location":"NY1","email":"","notes":""},{"id":"2348FX","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM6KKB31041","location":"NY1","email":"","notes":""},{"id":"2348G2","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM8KKB31039","location":"NY1","email":"","notes":""},{"id":"2348G6","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM1KKB31027","location":"NY1","email":"","notes":""},{"id":"2348G8","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM2KKB31036","location":"NY1","email":"","notes":""},{"id":"2348G9","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM0KKB31035","location":"NY1","email":"","notes":""},{"id":"2348GD","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM2KKB38407","location":"NY1","email":"","notes":""},{"id":"2348GF","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM5KKB31032","location":"NY1","email":"","notes":""},{"id":"2348GG","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM3KKB31031","location":"NY1","email":"","notes":""},{"id":"2348GH","type":"van","make":"Ford Transit-250","year":"2019","vin":"1FTYR2CM1KKB31030","location":"NY1","email":"","notes":""},{"id":"23SNV4","type":"van","make":"Mercedes-Benz Sprinter 2500","year":"2021","vin":"W1W40BHY5MT044222","location":"NY1","email":"","notes":""},{"id":"23T8T5","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2021","vin":"1FDRS6ZG8MKA84143","location":"NY1","email":"","notes":""},{"id":"23V7XK","type":"van","make":"Ford Transit Connect","year":"2021","vin":"NM0LS6E2XM1489184","location":"NY1","email":"","notes":""},{"id":"23WM5T","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C80MKA01472","location":"NY1","email":"","notes":""},{"id":"249J58","type":"trailer","make":"Trailer Trailer","year":"2017","vin":"5RTBE0812HD061019","location":"NY1","email":"","notes":""},{"id":"249J5B","type":"trailer","make":"Trailer Trailer","year":"2012","vin":"16HPB1210CP083048","location":"NY1","email":"","notes":"sold"},{"id":"249J5C","type":"trailer","make":"Trailer Trailer","year":"2004","vin":"1W4200J2X48005019","location":"NY1","email":"","notes":"@NY1\n3rd refurb to go to Royal Bodies"},{"id":"249J5D","type":"trailer","make":"Trailer Trailer","year":"2014","vin":"575GB2021EP094328","location":"NY1","email":"","notes":""},{"id":"252LSW","type":"heavy","make":"Mercedes-Benz Sprinter 3500XD Chassis","year":"2019","vin":"WDAPF4CDXKN026343","location":"NY1","email":"","notes":""},{"id":"2538CV","type":"heavy","make":"Mercedes-Benz Sprinter 3500XD Chassis","year":"2020","vin":"W1X8E33Y9LN125206","location":"NY1","email":"","notes":""},{"id":"2552WP","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C88MKA52654","location":"NY1","email":"","notes":""},{"id":"25Q4T9","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FKXNDC43512","location":"NY1","email":"","notes":""},{"id":"25Q4TB","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK8NDC43508","location":"NY1","email":"","notes":""},{"id":"265596","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FK6PDD09945","location":"NY1","email":"","notes":""},{"id":"26TCPW","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG7PE540562","location":"NY1","email":"","notes":""},{"id":"257WNL","type":"van","make":"Ford Transit-250 Cargo","year":"2022","vin":"1FTBR1C85NKA05342","location":"WCC","email":"","notes":""},{"id":"26TCPT","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG3PE540560","location":"WCC","email":"","notes":"Vehicle has transmission issues. Parked in lot"},{"id":"27DT44","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBGXRE148341","location":"WCC","email":"","notes":""},{"id":"27F4XR","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2024","vin":"1FDBF6Z81RKA05188","location":"WCC","email":"","notes":"Current - getting refurb @ Traffic Jams in GA."},{"id":"27FCKQ","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG1PE540556","location":"WCC","email":"","notes":""},{"id":"22H26C","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2015","vin":"1FDWS8ZM1FKA80250","location":"CT1","email":"","notes":"in use, CT1"},{"id":"23TV8L","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2021","vin":"1FDBF6Z80MKA15705","location":"CT1","email":"","notes":""},{"id":"252KZJ","type":"van","make":"Isuzu NPR","year":"2022","vin":"JALC4W168N7013843","location":"CT1","email":"","notes":""},{"id":"254QHQ","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C82MKA48129","location":"CT1","email":"","notes":""},{"id":"257WH5","type":"van","make":"Ford Transit-250 Cargo","year":"2022","vin":"1FTBR1C84NKA34542","location":"CT1","email":"","notes":""},{"id":"257WNZ","type":"van","make":"Ford Transit-250 Cargo","year":"2022","vin":"1FTBR1C88NKA19896","location":"CT1","email":"","notes":""},{"id":"26RV7W","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN0RDD13129","location":"CT1","email":"","notes":""},{"id":"27DT7N","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C81RKA12536","location":"CT1","email":"","notes":""},{"id":"22H27Q","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2017","vin":"1FDBF8ZM0HKA23009","location":"FL1","email":"","notes":""},{"id":"23963W","type":"van","make":"Ford F-250","year":"2019","vin":"1FTBF2B66KEE81186","location":"FL1","email":"","notes":"moving to FL1 5/15/20206"},{"id":"23NT83","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2020","vin":"1FDBF6Z89LKB75824","location":"FL1","email":"","notes":""},{"id":"24D4GD","type":"trailer","make":"Trailer Trailer","year":"2012","vin":"53NBE1222C1006982","location":"FL1","email":"","notes":"Location: Mercedes Benz Miami"},{"id":"24D4GJ","type":"trailer","make":"Trailer Trailer","year":"2013","vin":"5NHUEH220DU217185","location":"FL1","email":"","notes":"Location : Mercedes Benz Pembroke Pine"},{"id":"25Q4SV","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK3NDC43514","location":"FL1","email":"","notes":""},{"id":"25Q4T7","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK0NDC43504","location":"FL1","email":"","notes":"@ AWRS South florida- Ready to work\nNew Red box Smyrna build with white interior walls \n99K sale price"},{"id":"26B6H3","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FK2PDD26645","location":"FL1","email":"","notes":""},{"id":"26TCQ9","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG0PE540578","location":"FL1","email":"","notes":""},{"id":"27DT47","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG4RE148335","location":"FL1","email":"","notes":""},{"id":"27DT4B","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG6RE148336","location":"FL1","email":"","notes":""},{"id":"27DT7X","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C81RKA10415","location":"FL1","email":"","notes":"@ body shop, estimated mileage wrong. maintenance to be done when van is returned"},{"id":"282RW2","type":"trailer","make":"Trailer Trailer","year":"2004","vin":"48FCF162741011690","location":"FL1","email":"","notes":"Mercedes Benz Fort Lauderdale"},{"id":"282RW7","type":"trailer","make":"Trailer Trailer","year":"2012","vin":"5NHUJE429CU216866","location":"FL1","email":"","notes":"Location: Naples shop"},{"id":"29N4R9","type":"van","make":"Mercedes-Benz Metris","year":"2020","vin":"WD3PG3EA4L3643588","location":"FL1","email":"","notes":""},{"id":"22H2FC","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2017","vin":"1FDBF8ZM5HKA23006","location":"GA1","email":"","notes":""},{"id":"23T5VP","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C84MKA73629","location":"GA1","email":"","notes":""},{"id":"23T5W6","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C80MKA73630","location":"GA1","email":"","notes":""},{"id":"247H45","type":"trailer","make":"Trailer Trailer","year":"2013","vin":"5NHUCM424DU217140","location":"GA1","email":"","notes":""},{"id":"252D4K","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C80MKA52650","location":"GA1","email":"","notes":""},{"id":"2552XN","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C85MKA66687","location":"GA1","email":"","notes":"Not in use."},{"id":"2577V9","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE70NF192563","location":"GA1","email":"","notes":""},{"id":"26RV7N","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN9RDD13131","location":"GA1","email":"","notes":"In use - GA"},{"id":"26TCN5","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG8PE547939","location":"GA1","email":"","notes":""},{"id":"26WBSS","type":"van","make":"Chevrolet Silverado 2500HD","year":"2024","vin":"1GC0WLE76RF202731","location":"GA1","email":"","notes":""},{"id":"26WBSZ","type":"van","make":"Chevrolet Silverado 2500HD","year":"2024","vin":"1GC0WLE70RF202417","location":"GA1","email":"","notes":""},{"id":"282RVV","type":"trailer","make":"Trailer Trailer","year":"2018","vin":"5NHUCM423JU218727","location":"GA1","email":"","notes":""},{"id":"22KPRT","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2017","vin":"1FDBF8ZM8HKB45844","location":"MD1","email":"","notes":""},{"id":"22KZ9C","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2017","vin":"1FDRS8ZM7HKB00601","location":"MD1","email":"","notes":"Needs new Chassis, Swap at ARS Delaware"},{"id":"22LBGV","type":"van","make":"Ford F-250","year":"2018","vin":"1FTBF2A67JEB22476","location":"MD1","email":"","notes":""},{"id":"22S3BR","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2018","vin":"1FDRS8ZM1JKA51398","location":"MD1","email":"","notes":""},{"id":"23S387","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE78MF271087","location":"MD1","email":"","notes":""},{"id":"23S38C","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE79MF270966","location":"MD1","email":"","notes":""},{"id":"23S38G","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE78MF270893","location":"MD1","email":"","notes":""},{"id":"248KLR","type":"trailer","make":"Trailer Trailer","year":"2013","vin":"5NHUCM428DU217108","location":"MD1","email":"","notes":""},{"id":"248KLZ","type":"trailer","make":"Trailer Trailer","year":"2015","vin":"5NHUCM420FU217624","location":"MD1","email":"","notes":""},{"id":"249J5F","type":"trailer","make":"Trailer Trailer","year":"2015","vin":"5NHUCM420FU217591","location":"MD1","email":"","notes":"MD1 - in use"},{"id":"24D4GP","type":"trailer","make":"Trailer Trailer","year":"2018","vin":"53NBE1229J1059403","location":"MD1","email":"","notes":""},{"id":"2577X9","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE72NF190605","location":"MD1","email":"","notes":""},{"id":"2577XM","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE72NF190412","location":"MD1","email":"","notes":""},{"id":"26TCQ4","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG8PE540568","location":"MD1","email":"","notes":""},{"id":"26TCQ6","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG8PE540571","location":"MD1","email":"","notes":""},{"id":"26WBSP","type":"van","make":"Chevrolet Silverado 2500HD","year":"2024","vin":"1GC0WLE78RF202455","location":"MD1","email":"","notes":""},{"id":"26WBT9","type":"van","make":"Chevrolet Silverado 2500HD","year":"2024","vin":"1GC0WLE70RF202126","location":"MD1","email":"","notes":""},{"id":"27DT7P","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C82RKA13291","location":"MD1","email":"","notes":""},{"id":"27DT7T","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C88RKA12596","location":"MD1","email":"","notes":""},{"id":"27DT7V","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C81RKA09748","location":"MD1","email":"","notes":""},{"id":"27DWP7","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG9PE540563","location":"MD1","email":"","notes":""},{"id":"282RTQ","type":"trailer","make":"Trailer Trailer","year":"2016","vin":"5NHUCM42XGU218135","location":"MD1","email":"","notes":""},{"id":"282RVM","type":"trailer","make":"Trailer Trailer","year":"2017","vin":"5NHUCM42XHU218489","location":"MD1","email":"","notes":""},{"id":"282RVN","type":"trailer","make":"Trailer Trailer","year":"2016","vin":"575200D18GP321314","location":"MD1","email":"","notes":""},{"id":"282RVQ","type":"trailer","make":"Trailer Trailer","year":"2009","vin":"5NHUJE4219U216031","location":"MD1","email":"","notes":"would need full refurb, rough shape"},{"id":"282RVR","type":"trailer","make":"Trailer Trailer","year":"2008","vin":"4FPWB14278G130862","location":"MD1","email":"","notes":""},{"id":"282RVS","type":"trailer","make":"Trailer Trailer","year":"2008","vin":"4FPWB14238G125318","location":"MD1","email":"","notes":""},{"id":"2845ZN","type":"heavy","make":"Ford Transit-350 Cargo","year":"2023","vin":"1FTBW3X85PKA35846","location":"MD1","email":"","notes":"8/1 Aprox - Oil Change was done but paid CC, truck was not in system yet."},{"id":"22H27T","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2017","vin":"1FDBF8ZM9HKA23008","location":"NJ1","email":"","notes":""},{"id":"22JV79","type":"van","make":"Chevrolet Express 3500","year":"2015","vin":"1GB3G4CG2F1268001","location":"NJ1","email":"","notes":""},{"id":"23T8RX","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2021","vin":"1FDRS6ZG4MKA79733","location":"NJ1","email":"","notes":"11/11 - Truck in shop for Transmission Issue"},{"id":"249J57","type":"trailer","make":"Trailer Trailer","year":"2012","vin":"16HPB1210CP083047","location":"NJ1","email":"","notes":""},{"id":"24FK82","type":"trailer","make":"Trailer Trailer","year":"2009","vin":"5NHUJE4259U216095","location":"NJ1","email":"","notes":"possible refurb - needs to be checked out. will need flatbed to move"},{"id":"24FK83","type":"trailer","make":"Trailer Trailer","year":"2008","vin":"4FPWB14228G129456","location":"NJ1","email":"","notes":""},{"id":"252X4Z","type":"heavy","make":"Mercedes-Benz Sprinter 3500XD Chassis","year":"2020","vin":"W1X8E33Y8LN111569","location":"NJ1","email":"","notes":""},{"id":"25K9P4","type":"heavy","make":"Ford E-350 Cutaway","year":"2021","vin":"1FDWE3FN8MDC41377","location":"NJ1","email":"","notes":""},{"id":"25Q4GM","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK3NDC43500","location":"NJ1","email":"","notes":""},{"id":"25Q4SP","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK4NDC43506","location":"NJ1","email":"","notes":""},{"id":"25Q4SR","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK6NDC43510","location":"NJ1","email":"","notes":""},{"id":"25Q4SS","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK7NDC43502","location":"NJ1","email":"","notes":""},{"id":"26558X","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FK4PDD09944","location":"NJ1","email":"","notes":""},{"id":"26B6J7","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FK4PDD26646","location":"NJ1","email":"","notes":""},{"id":"26GLRD","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FK6PDD26647","location":"NJ1","email":"","notes":""},{"id":"26RGCD","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN3RDD11214","location":"NJ1","email":"","notes":""},{"id":"26RGDX","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN7RDD11216","location":"NJ1","email":"","notes":""},{"id":"26RGF5","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN9RDD11217","location":"NJ1","email":"","notes":""},{"id":"26TCPZ","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG2PE540565","location":"NJ1","email":"","notes":""},{"id":"26TZNQ","type":"heavy","make":"Ford E-350 Cutaway","year":"2024","vin":"1FDWE3FN7RDD15668","location":"NJ1","email":"","notes":""},{"id":"27DT7R","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C88RKA13327","location":"NJ1","email":"","notes":""},{"id":"27DT7S","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C85RKA09798","location":"NJ1","email":"","notes":""},{"id":"27F4XG","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2024","vin":"1FDBF6Z83RKA05130","location":"NJ1","email":"","notes":"moved to NJ1"},{"id":"247H48","type":"trailer","make":"Trailer Trailer","year":"2015","vin":"53NBE1221F1033739","location":"OpCo","email":"","notes":"@ GA1\n3rd refurb traffic jams"},{"id":"247TW9","type":"trailer","make":"Trailer Trailer","year":"2016","vin":"5NHUCM425GU218169","location":"OpCo","email":"","notes":"2nd refurb @ National Trailer\nSold to Russel Hall"},{"id":"248KM7","type":"trailer","make":"Trailer Trailer","year":"2013","vin":"5MHUCM422DU217072","location":"OpCo","email":"","notes":"VIN may be incorrect. Waiting for copy of Title to confirm"},{"id":"248KM8","type":"trailer","make":"Trailer Trailer","year":"2012","vin":"5NHUJE427CU216820","location":"OpCo","email":"","notes":"refurb complete, delievered to jeremy gapp, need title w/ lien release from suntrust."},{"id":"24BFGL","type":"trailer","make":"Trailer Trailer","year":"2008","vin":"5NHUJE4248U215451","location":"OpCo","email":"","notes":"I have the title"},{"id":"24BFGQ","type":"trailer","make":"Trailer Trailer","year":"2008","vin":"4FPWB14248G127109","location":"OpCo","email":"","notes":"6th refurb - national trailer"},{"id":"27F4XH","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2024","vin":"1FDBF6Z82RKA05247","location":"OpCo","email":"","notes":"Refurb to be completed and inspected by Mangrum week of 10/20/2025. Will transport to NY for wrap"},{"id":"27F4XS","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2024","vin":"1FDBF6Z86RKA04859","location":"OpCo","email":"","notes":""},{"id":"27F4XZ","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2024","vin":"1FDBF6Z89RKA05102","location":"OpCo","email":"","notes":"@Royal Bodies for refurb 10/16/2025"},{"id":"27LCT9","type":"trailer","make":"Trailer Trailer","year":"2008","vin":"4FPWB14278G123796","location":"OpCo","email":"","notes":""},{"id":"282RVX","type":"trailer","make":"Trailer Trailer","year":"2017","vin":"5NHUCM427HU218482","location":"OpCo","email":"","notes":""},{"id":"282RVZ","type":"trailer","make":"Trailer Trailer","year":"2017","vin":"5NHUCM428HU218488","location":"OpCo","email":"","notes":"@GA1\n2nd for refurb after boxswap refurb complete.\nto go to Traffic Jams Motorsports"},{"id":"282RW9","type":"trailer","make":"Trailer Trailer","year":"2011","vin":"5NHUJE427BU216511","location":"OpCo","email":"","notes":"3rd refurb - national trailer"},{"id":"282RWB","type":"trailer","make":"Trailer Trailer","year":"2008","vin":"5NHUJE4258U215639","location":"OpCo","email":"","notes":"5th refurb - national trailer"},{"id":"282RWC","type":"trailer","make":"Trailer Trailer","year":"2014","vin":"53NBE1225E1021768","location":"OpCo","email":"","notes":"Not moving to KC after trailer fire, now assigned to Ralph Savell instead.  We will assign a different unit to KC as soon as we can swap Cameron into the box truck MRF."},{"id":"282RWG","type":"trailer","make":"Trailer Trailer","year":"2013","vin":"53NBE1222D1008796","location":"OpCo","email":"","notes":""},{"id":"282RWT","type":"trailer","make":"Trailer Trailer","year":"2010","vin":"5NHUJE4209U216098","location":"OpCo","email":"","notes":"4th refurb - national trailer"},{"id":"28XPL2","type":"heavy","make":"Chevrolet Express Cutaway","year":"2014","vin":"1GB3G4CG0E1170504","location":"OpCo","email":"","notes":"Oliver build @ WCC - 35k as is"},{"id":"23S377","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE78MF274801","location":"MO1","email":"","notes":""},{"id":"23S37V","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE73MF271501","location":"MO1","email":"","notes":""},{"id":"23T5VV","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C87MKA94880","location":"MO1","email":"","notes":""},{"id":"2577VM","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE7XNF192635","location":"MO1","email":"","notes":""},{"id":"2577W7","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE78NF192746","location":"MO1","email":"","notes":"Using for transporting trailers to be refurbished"},{"id":"2577WL","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE79NF192044","location":"MO1","email":"","notes":""},{"id":"2577WS","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE78NF192116","location":"MO1","email":"","notes":""},{"id":"2577WZ","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE73NF192248","location":"MO1","email":"","notes":""},{"id":"25782B","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE70NF192370","location":"MO1","email":"","notes":""},{"id":"25Q4SZ","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK8NDC43511","location":"MO1","email":"","notes":""},{"id":"27DT4C","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG8RE148337","location":"MO1","email":"","notes":""},{"id":"27DT4D","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBGXRE148338","location":"MO1","email":"","notes":""},{"id":"27FCLJ","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG6PE540570","location":"MO1","email":"","notes":""},{"id":"282RW4","type":"trailer","make":"Trailer Trailer","year":"2017","vin":"53NBE1223H1052294","location":"MO1","email":"","notes":"refurb, MO1 keeping"},{"id":"282RW6","type":"trailer","make":"Trailer Trailer","year":"2015","vin":"53NBE1225F1029919","location":"MO1","email":"","notes":"Jordan currently using until we can swap Cameron into the box truck MRF\nAfter Jordan swaps to 282WC9 trailer, 282RW6 will relocate to KC"},{"id":"282RWJ","type":"trailer","make":"Trailer Trailer","year":"2010","vin":"53NBE1220J1059404","location":"MO1","email":"","notes":""},{"id":"282RWK","type":"trailer","make":"Trailer Trailer","year":"2016","vin":"53NBE1223G1038815","location":"MO1","email":"","notes":""},{"id":"282RWN","type":"trailer","make":"Trailer Trailer","year":"2017","vin":"53NBE1222H1047023","location":"MO1","email":"","notes":""},{"id":"282RWS","type":"trailer","make":"Trailer Trailer","year":"2018","vin":"53NBE1223J1055752","location":"MO1","email":"","notes":""},{"id":"282RWV","type":"trailer","make":"Trailer Trailer","year":"2013","vin":"53NBE1221D1011365","location":"MO1","email":"","notes":""},{"id":"282RX4","type":"trailer","make":"Trailer Trailer","year":"2015","vin":"53NBE1221F1029920","location":"MO1","email":"","notes":""},{"id":"282ZGH","type":"trailer","make":"Trailer Trailer","year":"2009","vin":"1L9AU16139L343051","location":"MO1","email":"","notes":"Duplicate trailer on Enterprise = 246BHP (08/26/24)"},{"id":"23S37F","type":"van","make":"Chevrolet Silverado 2500HD","year":"2021","vin":"1GC0WLE71MF271707","location":"MO2","email":"","notes":""},{"id":"23V587","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C85MKA19272","location":"MO2","email":"","notes":"Recently replaced transmission 08/24"},{"id":"24D4GC","type":"trailer","make":"Trailer Trailer","year":"2015","vin":"5NHUEH221FU217653","location":"MO2","email":"","notes":""},{"id":"24FHZV","type":"trailer","make":"Trailer Trailer","year":"2008","vin":"4RACS10188X023137","location":"MO2","email":"","notes":""},{"id":"2577TS","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE76NF189666","location":"MO2","email":"","notes":""},{"id":"2577VH","type":"van","make":"Chevrolet Silverado 2500HD","year":"2022","vin":"1GC0WLE72NF193598","location":"MO2","email":"","notes":""},{"id":"25Q4SW","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK1NDC43513","location":"MO2","email":"","notes":""},{"id":"26TCPQ","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG7PE540559","location":"MO2","email":"","notes":""},{"id":"26WBSQ","type":"van","make":"Chevrolet Silverado 2500HD","year":"2024","vin":"1GC0WLE7XRF201307","location":"MO2","email":"","notes":"Plan to convert to an MRF unit and add a GM Sale veh (08/26/24)"},{"id":"27DT45","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG2RE148334","location":"MO2","email":"","notes":""},{"id":"27DT4G","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG1RE148339","location":"MO2","email":"","notes":""},{"id":"282RWW","type":"trailer","make":"Trailer Trailer","year":"2017","vin":"53NBE122XH1049215","location":"MO2","email":"","notes":""},{"id":"282RWX","type":"trailer","make":"Trailer Trailer","year":"2012","vin":"53NBE1224C1006983","location":"MO2","email":"","notes":""},{"id":"282RWZ","type":"trailer","make":"Trailer Trailer","year":"2016","vin":"53NBE1226G1042373","location":"MO2","email":"","notes":""},{"id":"282RX2","type":"trailer","make":"Trailer Trailer","year":"2009","vin":"5NHUJE4239U216211","location":"MO2","email":"","notes":""},{"id":"22H2F3","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2015","vin":"1FDWS8ZM7FKA80253","location":"IL1","email":"","notes":"Good chasis, decent box, fans, motors, etc needs to be brought into working condition"},{"id":"23QT6F","type":"van","make":"Ford Transit-250 Cargo","year":"2020","vin":"1FTBR1C81LKB29105","location":"IL1","email":"","notes":"Transmission stalling, cracked windshield, right door does not open, left side mirror is off as of08/26/24"},{"id":"23V55W","type":"heavy","make":"Ford Transit-350 Cab Chassis","year":"2021","vin":"1FDBF6Z82MKA15706","location":"IL1","email":"","notes":""},{"id":"24DWZN","type":"trailer","make":"Trailer Trailer","year":"2008","vin":"4FPUB14278G125135","location":"IL1","email":"","notes":"Trailer has been inactive since 2017, functional can be sold, pictures provided previously (08/26/24)"},{"id":"257WNC","type":"van","make":"Ford Transit-250 Cargo","year":"2022","vin":"1FTBR1C83NKA05341","location":"IL1","email":"","notes":""},{"id":"25K9W6","type":"heavy","make":"Chevrolet 4500 LCF Gas","year":"2022","vin":"54DCDW1D3NS200335","location":"IL1","email":"","notes":""},{"id":"25Q4SX","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK5NDC43501","location":"IL1","email":"","notes":""},{"id":"25Q4T2","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FKXNDC43509","location":"IL1","email":"","notes":""},{"id":"25Q4T6","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK9NDC43503","location":"IL1","email":"","notes":""},{"id":"23T5VL","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C82MKA89019","location":"IN1","email":"","notes":"Vehicle requires a new transmission, should be back in use by Mid November - PB."},{"id":"252D4D","type":"van","make":"Ford Transit-250 Cargo","year":"2021","vin":"1FTBR1C84MKA52649","location":"IN1","email":"","notes":"Needs windshied and other minor cosmic issues, drives well need to keep for spare (08/26/24)"},{"id":"257WHZ","type":"van","make":"Ford Transit-250 Cargo","year":"2022","vin":"1FTBR1C80NKA62192","location":"IN1","email":"","notes":""},{"id":"25K9W8","type":"heavy","make":"Chevrolet 4500 LCF Gas","year":"2022","vin":"54DCDW1D5NS200336","location":"IN1","email":"","notes":""},{"id":"25Q4T4","type":"heavy","make":"Ford E-350 Cutaway","year":"2022","vin":"1FDWE3FK2NDC43505","location":"IN1","email":"","notes":""},{"id":"263KQM","type":"heavy","make":"Chevrolet 4500 LCF Gas","year":"2022","vin":"54DCDW1D4NS200442","location":"IN1","email":"","notes":""},{"id":"26RGCJ","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN5RDD11215","location":"IN1","email":"","notes":"SPARE IN1"},{"id":"26RV7K","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN7RDD13130","location":"IN1","email":"","notes":"In Use - IN1"},{"id":"26RV7R","type":"heavy","make":"Ford E-350 Cutaway","year":"2023","vin":"1FDWE3FN0RDD13132","location":"IN1","email":"","notes":"Moved to INDY from IL1 (08/26/24)"},{"id":"26TCPL","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG4PE540552","location":"IN1","email":"","notes":""},{"id":"27DT43","type":"van","make":"RAM ProMaster 1500","year":"2024","vin":"3C6LRVBG8RE148340","location":"IN1","email":"","notes":""},{"id":"27DT7M","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C86RKA12760","location":"IN1","email":"","notes":"Van requires a new AC Compressor, it is on back order but may be available 1st week on November.- PB"},{"id":"27DT7Z","type":"van","make":"Ford Transit-250 Cargo","year":"2024","vin":"1FTBR1C80RKA09949","location":"IN1","email":"","notes":""},{"id":"27FCL3","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBG3PE540557","location":"IN1","email":"","notes":""},{"id":"27FCLC","type":"van","make":"RAM ProMaster 1500","year":"2023","vin":"3C6LRVBGXPE540569","location":"IN1","email":"","notes":""}];
-
-let fleet=[], inspections=[], defectLog=[], maintLog={}, maintIntervals={}, odometerData={}, escalationSettings={};
-let currentUnit=null, currentQRUnit=null, currentMaintUnit=null, activeFilter='all', gpsData=null, activeTab='defects';
-let pendingModalMaint=null;
-
-function gs(k){try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;}}
-function ss(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
-
-async function load(){
-  fleet=[...PRELOADED_FLEET];
-  await sbLoadAll();
   syncDefectLog();
   const params=new URLSearchParams(window.location.search);
   const scanned=params.get('unit');
-  if(scanned){const idx=fleet.findIndex(u=>u.id===scanned);if(idx>=0){startInspection(idx);return;}}
-  if(!BASE_URL) document.getElementById('config-warn').style.display='block';
+  if(scanned){
+    // Filter to user's location for scanned unit
+    const idx=getVisibleFleet().findIndex(u=>u.id===scanned);
+    if(idx>=0){startInspection(idx);return;}
+  }
   renderFleet();updateOverdueBadge();
 }
 
-function save(){
-  // legacy local backup kept; Supabase calls are made per-operation
-  sbSaveSettings();
+function getVisibleFleet(){
+  if(isAdmin) return fleet;
+  return fleet.filter(u=>u.location===userLocation);
+}
+
+// ─── SUPABASE SAVE HELPERS ────────────────────────────────────────────────────
+async function sbSaveSettings(){
+  const added=fleet.filter(u=>!PRELOADED_FLEET.find(p=>p.id===u.id));
+  ss('fi-fleet-added',added);ss('fi-maint-intervals',maintIntervals);ss('fi-escalation',escalationSettings);
+  try{await sb.from('fi_settings').upsert([{key:'fleet_added',value:added},{key:'maint_intervals',value:maintIntervals},{key:'escalation',value:escalationSettings}],{onConflict:'key'});}catch(e){console.warn(e);}
+}
+async function sbSaveInspection(record){
+  ss('fi-inspections',inspections);
+  try{await sb.from('fi_inspections').upsert({id:record.id,data:record},{onConflict:'id'});}catch(e){console.warn(e);}
+}
+async function sbSaveDefectLog(){
+  ss('fi-defect-log',defectLog);
+  try{await sb.from('fi_defect_log').upsert(defectLog.map(d=>({log_id:d.logId,data:d})),{onConflict:'log_id'});}catch(e){console.warn(e);}
+}
+async function sbSaveMaintLog(unitId,itemId){
+  ss('fi-maint-log',maintLog);
+  try{const data=(maintLog[unitId]||{})[itemId];if(data) await sb.from('fi_maint_log').upsert({unit_id:unitId,item_id:itemId,data},{onConflict:'unit_id,item_id'});}catch(e){console.warn(e);}
+}
+async function sbSaveOdometer(unitId){
+  ss('fi-odometer',odometerData);
+  try{const data=odometerData[unitId];if(data) await sb.from('fi_odometer').upsert({unit_id:unitId,data},{onConflict:'unit_id'});}catch(e){console.warn(e);}
+}
+
+// ─── PHOTO UPLOAD ─────────────────────────────────────────────────────────────
+async function uploadPhoto(file, inspectionId, itemKey){
+  const ext=file.name.split('.').pop()||'jpg';
+  const path=`inspections/${inspectionId}/${itemKey}-${Date.now()}.${ext}`;
+  const {data,error}=await sb.storage.from('fleet-photos').upload(path,file,{upsert:false,contentType:file.type});
+  if(error) throw error;
+  const {data:urlData}=sb.storage.from('fleet-photos').getPublicUrl(path);
+  return {url:urlData.publicUrl, path};
+}
+
+function triggerPhotoUpload(itemKey, inspectionId){
+  const input=document.createElement('input');
+  input.type='file';input.accept='image/*';input.capture='environment';
+  input.onchange=async()=>{
+    const file=input.files[0];if(!file)return;
+    const btn=document.querySelector(`[data-photo-btn="${itemKey}"]`);
+    if(btn){btn.textContent='⏳';btn.style.pointerEvents='none';}
+    try{
+      const result=await uploadPhoto(file,inspectionId,itemKey);
+      if(!inspectionPhotos[itemKey]) inspectionPhotos[itemKey]=[];
+      inspectionPhotos[itemKey].push(result);
+      renderPhotoRow(itemKey);
+    }catch(e){alert('Photo upload failed: '+e.message);}
+    if(btn){btn.textContent='📷';btn.style.pointerEvents='';}
+  };
+  input.click();
+}
+
+function renderPhotoRow(itemKey){
+  const row=document.getElementById('photo-row-'+itemKey);
+  if(!row)return;
+  const photos=inspectionPhotos[itemKey]||[];
+  const thumbsHtml=photos.map(p=>`<img class="photo-thumb" src="${p.url}" onclick="openPhotoModal('${p.url}')" title="Tap to enlarge">`).join('');
+  row.innerHTML=`${thumbsHtml}<div class="photo-add-btn" data-photo-btn="${itemKey}" onclick="triggerPhotoUpload('${itemKey}','${currentInspectionId}')">📷</div>`;
+  row.classList.add('visible');
+}
+
+function openPhotoModal(url){
+  document.getElementById('photo-modal-img').src=url;
+  document.getElementById('photo-modal').style.display='flex';
 }
 
 // ─── ODOMETER ─────────────────────────────────────────────────────────────────
 function getOdo(unitId){return odometerData[unitId]||{miles:0,ts:null,source:'none'};}
 function setOdo(unitId,miles,source){
   const cur=getOdo(unitId);
-  if(miles>cur.miles||source==='manual'){
-    odometerData[unitId]={miles:parseInt(miles),ts:Date.now(),source};
-    sbSaveOdometer(unitId);
-  }
+  if(miles>cur.miles||source==='manual'){odometerData[unitId]={miles:parseInt(miles),ts:Date.now(),source};sbSaveOdometer(unitId);}
 }
 
 // ─── MAINTENANCE ──────────────────────────────────────────────────────────────
-function getInterval(itemId,key){
-  const def=MAINT_ITEMS.find(m=>m.id===itemId);
-  return (maintIntervals[itemId]&&maintIntervals[itemId][key]!=null)?parseInt(maintIntervals[itemId][key]):def['default'+key.charAt(0).toUpperCase()+key.slice(1)];
-}
-function getLastMaint(unitId,itemId){
-  const log=(maintLog[unitId]||{})[itemId];
-  return log||null;
-}
+function getInterval(itemId,key){const def=MAINT_ITEMS.find(m=>m.id===itemId);return(maintIntervals[itemId]&&maintIntervals[itemId][key]!=null)?parseInt(maintIntervals[itemId][key]):def['default'+key.charAt(0).toUpperCase()+key.slice(1)];}
+function getLastMaint(unitId,itemId){return(maintLog[unitId]||{})[itemId]||null;}
 function maintStatus(unitId,itemId){
-  const odo=getOdo(unitId);
-  const last=getLastMaint(unitId,itemId);
-  const intMiles=getInterval(itemId,'miles');
-  const intDays=getInterval(itemId,'days');
-  const currentMiles=odo.miles||0;
-  const lastMiles=last?last.miles:0;
-  const lastTs=last?last.ts:null;
-  const milesSince=currentMiles-lastMiles;
-  const daysSince=lastTs?Math.floor((Date.now()-lastTs)/(86400000)):9999;
-  const milesLeft=intMiles-milesSince;
-  const daysLeft=intDays-daysSince;
-  const pctMiles=Math.min(milesSince/intMiles,1);
-  const pctDays=Math.min(daysSince/intDays,1);
-  const pct=Math.max(pctMiles,pctDays);
-  let status='ok';
-  if(milesLeft<=0||daysLeft<=0) status='due';
-  else if(milesLeft<=500||daysLeft<=14) status='soon';
-  return {status,milesLeft,daysLeft,milesSince,daysSince,pct,currentMiles,lastMiles,lastTs,intMiles,intDays};
+  const odo=getOdo(unitId),last=getLastMaint(unitId,itemId);
+  const intMiles=getInterval(itemId,'miles'),intDays=getInterval(itemId,'days');
+  const currentMiles=odo.miles||0,lastMiles=last?last.miles:0,lastTs=last?last.ts:null;
+  const milesSince=currentMiles-lastMiles,daysSince=lastTs?Math.floor((Date.now()-lastTs)/86400000):9999;
+  const milesLeft=intMiles-milesSince,daysLeft=intDays-daysSince;
+  const pct=Math.max(Math.min(milesSince/intMiles,1),Math.min(daysSince/intDays,1));
+  let status='ok';if(milesLeft<=0||daysLeft<=0)status='due';else if(milesLeft<=500||daysLeft<=14)status='soon';
+  return{status,milesLeft,daysLeft,milesSince,daysSince,pct,intMiles,intDays};
 }
 function unitMaintSummary(unitId,type){
-  if(type==='trailer') return {due:0,soon:0};
-  let due=0,soon=0;
-  MAINT_ITEMS.forEach(m=>{
-    const s=maintStatus(unitId,m.id);
-    if(s.status==='due') due++;
-    else if(s.status==='soon') soon++;
-  });
-  return {due,soon};
+  const items=MAINT_ITEMS.filter(m=>m.types.includes(type));
+  let due=0,soon=0;items.forEach(m=>{const s=maintStatus(unitId,m.id);if(s.status==='due')due++;else if(s.status==='soon')soon++;});
+  return{due,soon};
 }
 function allMaintDue(){
-  let count=0;
-  fleet.filter(u=>u.type!=='trailer').forEach(u=>{
-    MAINT_ITEMS.forEach(m=>{if(maintStatus(u.id,m.id).status==='due') count++;});
-  });
+  let count=0;getVisibleFleet().forEach(u=>{MAINT_ITEMS.filter(m=>m.types.includes(u.type)).forEach(m=>{if(maintStatus(u.id,m.id).status==='due')count++;});});
   return count;
 }
 
 function logMaintComplete(unitId,itemId){
   pendingModalMaint={unitId,itemId};
-  const u=fleet.find(f=>f.id===unitId);
-  const odo=getOdo(unitId);
   const item=MAINT_ITEMS.find(m=>m.id===itemId);
+  const odo=getOdo(unitId);
   document.getElementById('modal-title').textContent='Log: '+item.name;
-  document.getElementById('modal-body').innerHTML=`
-    <p style="font-size:14px;margin-bottom:12px">Record the completion of <strong>${item.name}</strong> for unit <strong>${unitId}</strong>.</p>
-    <div class="form-row"><label class="fl">Odometer at service (miles)</label><input type="number" id="modal-odo" value="${odo.miles||''}" min="0" placeholder="e.g. 84210"></div>
-    <div class="form-row"><label class="fl">Performed by</label><input type="text" id="modal-tech" placeholder="Tech name or shop"></div>
-    <div class="form-row"><label class="fl">Notes (optional)</label><input type="text" id="modal-note" placeholder="e.g. Used Mobil 1 5W-30"></div>
-  `;
+  document.getElementById('modal-body').innerHTML=`<p style="font-size:14px;margin-bottom:12px">Record completion of <strong>${item.name}</strong> for unit <strong>${unitId}</strong>.</p><div class="form-row"><label class="fl">Odometer at service (miles)</label><input type="number" id="modal-odo" value="${odo.miles||''}" min="0"></div><div class="form-row"><label class="fl">Performed by</label><input type="text" id="modal-tech" placeholder="Tech name or shop"></div><div class="form-row"><label class="fl">Notes (optional)</label><input type="text" id="modal-note" placeholder="e.g. Used Mobil 1 5W-30"></div>`;
   document.getElementById('modal-overlay').style.display='flex';
 }
-
 function confirmLogMaint(){
-  if(!pendingModalMaint) return;
-  const {unitId,itemId}=pendingModalMaint;
+  if(!pendingModalMaint)return;
+  const{unitId,itemId}=pendingModalMaint;
   const miles=parseInt(document.getElementById('modal-odo').value)||getOdo(unitId).miles||0;
   const tech=document.getElementById('modal-tech').value||'Unknown';
   const note=document.getElementById('modal-note').value||'';
-  if(!maintLog[unitId]) maintLog[unitId]={};
+  if(!maintLog[unitId])maintLog[unitId]={};
   maintLog[unitId][itemId]={miles,ts:Date.now(),tech,note};
-  setOdo(unitId,miles,'manual');
-  sbSaveMaintLog(unitId,itemId);
-  closeModal();
-  if(currentMaintUnit===unitId) renderMaintDetail(unitId);
+  setOdo(unitId,miles,'manual');sbSaveMaintLog(unitId,itemId);closeModal();
+  if(currentMaintUnit===unitId)renderMaintDetail(unitId);
   renderFleet();updateOverdueBadge();
-  if(activeTab==='maintenance') renderAdminMaint();
+  if(activeTab==='maintenance')renderAdminMaint();
 }
-
-function closeModal(e){
-  if(e&&e.target!==document.getElementById('modal-overlay')) return;
-  document.getElementById('modal-overlay').style.display='none';
-  pendingModalMaint=null;
-}
+function closeModal(e){if(e&&e.target!==document.getElementById('modal-overlay'))return;document.getElementById('modal-overlay').style.display='none';pendingModalMaint=null;}
 
 // ─── MAINT SCREEN ─────────────────────────────────────────────────────────────
 function openMaintScreen(unitIdx){
-  const u=fleet[unitIdx];
-  currentMaintUnit=u.id;
+  const vf=getVisibleFleet();const u=vf[unitIdx];currentMaintUnit=u.id;
   document.getElementById('maint-title').textContent='Maintenance — '+u.id;
   document.getElementById('maint-sub').textContent=typeName(u.type)+(u.location?' · '+u.location:'');
   const odo=getOdo(u.id);
   document.getElementById('maint-current-odo').textContent=odo.miles?odo.miles.toLocaleString()+' mi':'Not recorded';
   document.getElementById('maint-odo-source').textContent=odo.source==='inspection'?'From last inspection':odo.source==='manual'?'Manually entered':'';
   document.getElementById('manual-odo').value=odo.miles||'';
-  renderMaintDetail(u.id);
-  showScreen('screen-maint');
+  renderMaintDetail(u.id);showScreen('screen-maint');
 }
-
 function saveManualOdo(){
   const val=parseInt(document.getElementById('manual-odo').value);
   if(!val||val<0){alert('Please enter a valid mileage.');return;}
@@ -652,328 +689,213 @@ function saveManualOdo(){
   const odo=getOdo(currentMaintUnit);
   document.getElementById('maint-current-odo').textContent=odo.miles.toLocaleString()+' mi';
   document.getElementById('maint-odo-source').textContent='Manually entered';
-  renderMaintDetail(currentMaintUnit);
-  renderFleet();updateOverdueBadge();
-  if(activeTab==='maintenance') renderAdminMaint();
+  renderMaintDetail(currentMaintUnit);renderFleet();updateOverdueBadge();
 }
-
 function renderMaintDetail(unitId){
   const container=document.getElementById('maint-items-list');
-  container.innerHTML=MAINT_ITEMS.map(m=>{
-    const s=maintStatus(unitId,m.id);
-    const last=getLastMaint(unitId,m.id);
+  const unitType=fleet.find(u=>u.id===unitId)?.type||'van';
+  const items=MAINT_ITEMS.filter(m=>m.types.includes(unitType));
+  container.innerHTML=items.map(m=>{
+    const s=maintStatus(unitId,m.id),last=getLastMaint(unitId,m.id);
     const cls=s.status==='due'?'due':s.status==='soon'?'soon':'ok';
-    const pillHtml=s.status==='due'?`<span class="maint-pill-due">⚠ OVERDUE</span>`:s.status==='soon'?`<span class="maint-pill-soon">⏱ Due soon</span>`:`<span class="badge ok-maint">✓ OK</span>`;
+    const pill=s.status==='due'?`<span class="maint-pill-due">⚠ OVERDUE</span>`:s.status==='soon'?`<span class="maint-pill-soon">⏱ Due soon</span>`:`<span class="badge ok-maint">✓ OK</span>`;
     const barColor=s.status==='due'?'var(--red)':s.status==='soon'?'var(--amber)':'var(--green)';
-    const milesInfo=s.milesLeft>0?`${s.milesLeft.toLocaleString()} mi left`:`${Math.abs(s.milesLeft).toLocaleString()} mi overdue`;
-    const daysInfo=s.daysLeft>0?`${s.daysLeft}d left`:`${Math.abs(s.daysLeft)}d overdue`;
     const lastInfo=last?`Last: ${new Date(last.ts).toLocaleDateString()} at ${last.miles.toLocaleString()} mi by ${last.tech}`:'Never serviced';
-    return `<div class="maint-card ${cls}" style="margin-bottom:10px">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:20px">${m.icon}</span>
-          <div>
-            <div style="font-weight:600;font-size:14px">${m.name}</div>
-            <div style="font-size:12px;color:var(--text-sec);margin-top:2px">${lastInfo}</div>
-          </div>
-        </div>
-        ${pillHtml}
-      </div>
-      <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${Math.round(s.pct*100)}%;background:${barColor}"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-sec);margin-top:5px">
-        <span>🛣 ${milesInfo} (every ${s.intMiles.toLocaleString()} mi)</span>
-        <span>📅 ${daysInfo} (every ${s.intDays}d)</span>
-      </div>
-      <div style="margin-top:10px">
-        <button class="btn sm success" onclick="logMaintComplete('${unitId}','${m.id}')">✓ Log as Completed</button>
-      </div>
-    </div>`;
+    return`<div class="maint-card ${cls}"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:20px">${m.icon}</span><div><div style="font-weight:600;font-size:14px">${m.name}</div><div style="font-size:12px;color:var(--text-sec);margin-top:2px">${lastInfo}</div></div></div>${pill}</div><div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${Math.round(s.pct*100)}%;background:${barColor}"></div></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-sec);margin-top:5px"><span>🛣 ${s.milesLeft>0?s.milesLeft.toLocaleString()+' mi left':Math.abs(s.milesLeft).toLocaleString()+' mi overdue'} (every ${s.intMiles.toLocaleString()} mi)</span><span>📅 ${s.daysLeft>0?s.daysLeft+'d left':Math.abs(s.daysLeft)+'d overdue'} (every ${s.intDays}d)</span></div><div style="margin-top:10px"><button class="btn sm success" onclick="logMaintComplete('${unitId}','${m.id}')">✓ Log as Completed</button></div></div>`;
   }).join('');
 }
 
 // ─── DEFECT LOG ───────────────────────────────────────────────────────────────
 function syncDefectLog(){
-  inspections.forEach((rec,ri)=>{
+  inspections.forEach((rec)=>{
     rec.defects.forEach((d,di)=>{
       const logId=rec.id+'-'+di;
       if(!defectLog.find(l=>l.logId===logId)){
-        defectLog.push({logId,inspectionId:rec.id,unitId:rec.unitId,unitLocation:rec.unitLocation||'',unitType:rec.unitType,tech:rec.tech,ts:rec.ts,section:d.section,item:d.item,note:d.note||'',resolved:false,resolvedBy:'',resolvedTs:null,resolvedNote:''});
+        defectLog.push({logId,inspectionId:rec.id,unitId:rec.unitId,unitLocation:rec.unitLocation||'',unitType:rec.unitType,tech:rec.tech,ts:rec.ts,section:d.section,item:d.item,note:d.note||'',photos:d.photos||[],resolved:false,resolvedBy:'',resolvedTs:null,resolvedNote:''});
       }
     });
   });
 }
-function daysOpen(e){return Math.floor((e.resolved?e.resolvedTs:Date.now()-e.ts)/86400000);}
-function escalationLevel(e){
-  if(e.resolved) return -1;
-  const d=Math.floor((Date.now()-e.ts)/86400000);
-  let lv=-1;ESCALATION_LEVELS.forEach((l,i)=>{if(d>=l.days) lv=i;});return lv;
-}
+function escalationLevel(e){if(e.resolved)return -1;const d=Math.floor((Date.now()-e.ts)/86400000);let lv=-1;ESCALATION_LEVELS.forEach((l,i)=>{if(d>=l.days)lv=i;});return lv;}
 function openDefects(){return defectLog.filter(d=>!d.resolved);}
 function updateOverdueBadge(){
   const esc=openDefects().filter(d=>escalationLevel(d)>=0).length;
-  const due=allMaintDue();
-  const b=document.getElementById('overdue-badge');
-  const total=esc+due;
-  if(b){b.textContent=total;b.style.display=total>0?'inline-block':'none';}
-  const mt=document.getElementById('maint-tab-count');
-  if(mt){mt.textContent=due;mt.style.display=due>0?'inline-block':'none';}
-  const dt=document.getElementById('defect-tab-count');
-  if(dt){dt.textContent=esc;dt.style.display=esc>0?'inline-block':'none';}
+  const due=allMaintDue();const total=esc+due;
+  const b=document.getElementById('overdue-badge');if(b){b.textContent=total;b.style.display=total>0?'inline-block':'none';}
+  const mt=document.getElementById('maint-tab-count');if(mt){mt.textContent=due;mt.style.display=due>0?'inline-block':'none';}
+  const dt=document.getElementById('defect-tab-count');if(dt){dt.textContent=esc;dt.style.display=esc>0?'inline-block':'none';}
 }
 function resolveDefect(logId){
-  const note=prompt('Resolution note (optional):','');if(note===null) return;
-  const by=prompt('Your name:','')||'Unknown';
-  const e=defectLog.find(d=>d.logId===logId);if(!e) return;
+  const note=prompt('Resolution note (optional):','');if(note===null)return;
+  const by=prompt('Your name:','')||userProfile?.name||'Unknown';
+  const e=defectLog.find(d=>d.logId===logId);if(!e)return;
   e.resolved=true;e.resolvedBy=by;e.resolvedTs=Date.now();e.resolvedNote=note;
   sbSaveDefectLog();renderAdminDefects();updateOverdueBadge();
 }
-function getEscEmail(loc,lv){const l=escalationSettings[loc]||{};return(['managerEmail','regionalEmail','directorEmail','executiveEmail'])[lv]?l[(['managerEmail','regionalEmail','directorEmail','executiveEmail'])[lv]]||'':'';}
-function escEmailBody(e,lv){
-  const d=Math.floor((Date.now()-e.ts)/86400000);
-  return `DEFECT ESCALATION — ${ESCALATION_LEVELS[lv].label.toUpperCase()}\n\nUnit: ${e.unitId} (${e.unitLocation||'—'})\nDefect: ${e.item}\nSection: ${e.section}\n${e.note?'Tech note: '+e.note+'\n':''}Reported by: ${e.tech}\nReported: ${new Date(e.ts).toLocaleString()}\nDays open: ${d}\n\nThis defect has been open ${d} day(s) and has reached the ${ESCALATION_LEVELS[lv].label} escalation level.`;
-}
+function getEscEmail(loc,lv){const l=escalationSettings[loc]||{};return(['managerEmail','regionalEmail','directorEmail','executiveEmail'])[lv]?l[['managerEmail','regionalEmail','directorEmail','executiveEmail'][lv]]||'':'';}
 
 // ─── ADMIN ────────────────────────────────────────────────────────────────────
 function switchTab(tab){
   activeTab=tab;
-  ['defects','maintenance','history','settings'].forEach(t=>{
-    document.getElementById('tab-'+t).style.display=t===tab?'block':'none';
-  });
-  document.querySelectorAll('.tab').forEach((el,i)=>{
-    el.classList.toggle('active',['defects','maintenance','history','settings'][i]===tab);
-  });
-  if(tab==='defects') renderAdminDefects();
-  if(tab==='maintenance') renderAdminMaint();
-  if(tab==='history') renderAdminHistory();
+  ['defects','maintenance','history','users','settings'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===tab?'block':'none';});
+  document.querySelectorAll('.tab').forEach((el,i)=>{el.classList.toggle('active',['defects','maintenance','history','users','settings'][i]===tab);});
+  if(tab==='defects')renderAdminDefects();
+  if(tab==='maintenance')renderAdminMaint();
+  if(tab==='history')renderAdminHistory();
+  if(tab==='users')renderAdminUsers();
   if(tab==='settings'){renderIntervalSettings();renderEscalationSettings();}
 }
-
 function renderAdmin(){
-  const open=openDefects().length;
-  const esc=openDefects().filter(d=>escalationLevel(d)>=0).length;
-  const due=allMaintDue();
+  const vf=getVisibleFleet();
+  const open=openDefects().length,esc=openDefects().filter(d=>escalationLevel(d)>=0).length,due=allMaintDue();
+  const myInsps=inspections.filter(i=>isAdmin||i.unitLocation===userLocation).length;
+  const metricStyle='cursor:pointer;transition:box-shadow .15s,transform .1s';
+  const metricHover='onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.15)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='';this.style.transform=''"';
   document.getElementById('admin-metrics').innerHTML=`
-    <div class="metric"><div class="metric-val">${fleet.length}</div><div class="metric-label">Fleet units</div></div>
-    <div class="metric"><div class="metric-val">${inspections.length}</div><div class="metric-label">Inspections</div></div>
-    <div class="metric"><div class="metric-val" style="color:var(--red)">${open}</div><div class="metric-label">Open defects</div></div>
-    <div class="metric"><div class="metric-val" style="color:var(--amber)">${due}</div><div class="metric-label">Maint due</div></div>
-  `;
+    <div class="metric" style="${metricStyle}" ${metricHover} onclick="showScreen('screen-home')" title="Go to fleet list">
+      <div class="metric-val">${vf.length}</div><div class="metric-label">Fleet units</div>
+    </div>
+    <div class="metric" style="${metricStyle}" ${metricHover} onclick="switchTab('history')" title="View inspection history">
+      <div class="metric-val">${myInsps}</div><div class="metric-label">Inspections</div>
+    </div>
+    <div class="metric" style="${metricStyle}" ${metricHover} onclick="switchTab('defects')" title="View open defects">
+      <div class="metric-val" style="color:var(--red)">${open}</div><div class="metric-label">Open defects</div>
+    </div>
+    <div class="metric" style="${metricStyle}" ${metricHover} onclick="switchTab('maintenance')" title="View maintenance due">
+      <div class="metric-val" style="color:var(--amber)">${due}</div><div class="metric-label">Maint due</div>
+    </div>`;
   updateOverdueBadge();switchTab(activeTab);
 }
-
 function renderAdminDefects(){
-  const c=document.getElementById('admin-defects');
-  const nd=document.getElementById('no-defects');
-  const open=defectLog.filter(d=>!d.resolved).sort((a,b)=>escalationLevel(b)-escalationLevel(a));
-  const res=defectLog.filter(d=>d.resolved).sort((a,b)=>b.resolvedTs-a.resolvedTs).slice(0,10);
+  const c=document.getElementById('admin-defects'),nd=document.getElementById('no-defects');
+  const myDefects=isAdmin?defectLog:defectLog.filter(d=>d.unitLocation===userLocation);
+  const open=myDefects.filter(d=>!d.resolved).sort((a,b)=>escalationLevel(b)-escalationLevel(a));
+  const res=myDefects.filter(d=>d.resolved).sort((a,b)=>b.resolvedTs-a.resolvedTs).slice(0,10);
   const all=[...open,...res];
-  if(!all.length){c.innerHTML='';nd.style.display='block';return;}
-  nd.style.display='none';
+  if(!all.length){c.innerHTML='';nd.style.display='block';return;}nd.style.display='none';
   c.innerHTML=all.map(entry=>{
-    const lv=escalationLevel(entry);
-    const days=Math.floor((Date.now()-entry.ts)/86400000);
-    if(entry.resolved){
-      return `<div class="defect-card resolved"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><strong>${entry.unitId}</strong>${entry.unitLocation?` <span class="loc-tag">${entry.unitLocation}</span>`:''} <span class="badge resolved">✓ Resolved</span></div><span style="font-size:12px;color:var(--text-hint)">Open ${days}d</span></div><div style="font-size:14px;margin-top:6px"><strong>${entry.item}</strong> <span style="color:var(--text-sec);font-size:13px">— ${entry.section}</span></div><div style="font-size:12px;color:var(--text-sec);margin-top:4px">Resolved by ${entry.resolvedBy}${entry.resolvedNote?' · '+entry.resolvedNote:''}</div></div>`;
-    }
+    const lv=escalationLevel(entry),days=Math.floor((Date.now()-entry.ts)/86400000);
+    const photoHtml=entry.photos&&entry.photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${entry.photos.map(p=>`<img class="photo-thumb" src="${p.url}" onclick="openPhotoModal('${p.url}')">`).join('')}</div>`:'';
+    if(entry.resolved){return`<div class="defect-card resolved"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><strong>${entry.unitId}</strong>${entry.unitLocation?` <span class="loc-tag">${entry.unitLocation}</span>`:''} <span class="badge resolved">✓ Resolved</span></div><span style="font-size:12px;color:var(--text-hint)">${days}d open</span></div><div style="font-size:14px;margin-top:6px"><strong>${entry.item}</strong> <span style="color:var(--text-sec);font-size:13px">— ${entry.section}</span></div><div style="font-size:12px;color:var(--text-sec);margin-top:4px">Resolved by ${entry.resolvedBy}${entry.resolvedNote?' · '+entry.resolvedNote:''}</div>${photoHtml}</div>`;}
     const pill=lv>=0?`<span class="esc-pill ${ESCALATION_LEVELS[lv].cls}">⬆ ${ESCALATION_LEVELS[lv].label}</span>`:`<span class="esc-pill esc-1">Pending</span>`;
     const emailAddr=lv>=0?getEscEmail(entry.unitLocation,lv):'';
-    const emailBtn=emailAddr?`<a href="mailto:${emailAddr}?subject=${encodeURIComponent('Defect: '+entry.unitId+' — '+entry.item)}&body=${encodeURIComponent(escEmailBody(entry,lv))}" class="btn sm">📧 Email ${ESCALATION_LEVELS[lv].label}</a>`:'';
-    const nextMsg=lv<0?`Escalates to Manager in ${1-days} day${1-days!==1?'s':''}`:lv===0?`Escalates to Regional in ${3-days} day${3-days!==1?'s':''}`:lv===1?`Escalates to Director in ${7-days} day${7-days!==1?'s':''}`:lv===2?`Escalates to Executive in ${14-days} day${14-days!==1?'s':''}`:null;
-    return `<div class="defect-card esc-level-${Math.max(lv,0)}"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><strong>${entry.unitId}</strong>${entry.unitLocation?` <span class="loc-tag">${entry.unitLocation}</span>`:''} ${pill}</div><span style="font-size:12px;font-weight:600;color:${lv>=3?'var(--purple)':lv>=2?'var(--red)':lv>=1?'var(--orange)':'var(--amber)'}">${days}d open</span></div><div style="margin-top:8px;font-size:14px"><strong>${entry.item}</strong> <span style="color:var(--text-sec);font-size:13px">— ${entry.section}</span></div>${entry.note?`<div style="font-size:13px;color:var(--text-sec);margin-top:3px">${entry.note}</div>`:''}<div style="font-size:12px;color:var(--text-hint);margin-top:3px">Reported by ${entry.tech} · ${new Date(entry.ts).toLocaleString()}</div><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">${emailBtn}<button class="btn sm success" onclick="resolveDefect('${entry.logId}')">✓ Mark Resolved</button></div>${nextMsg?`<div style="font-size:12px;color:var(--text-sec);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">⏱ ${nextMsg} if unresolved</div>`:''}${lv>=3?`<div style="font-size:12px;color:var(--purple);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-weight:600">🚨 Maximum escalation reached</div>`:''}`;
+    const emailBtn=emailAddr?`<a href="mailto:${emailAddr}?subject=${encodeURIComponent('Defect: '+entry.unitId+' — '+entry.item)}" class="btn sm">📧 Email ${ESCALATION_LEVELS[lv].label}</a>`:'';
+    return`<div class="defect-card esc-level-${Math.max(lv,0)}"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><strong>${entry.unitId}</strong>${entry.unitLocation?` <span class="loc-tag">${entry.unitLocation}</span>`:''} ${pill}</div><span style="font-size:12px;font-weight:600;color:${lv>=3?'var(--purple)':lv>=2?'var(--red)':lv>=1?'var(--orange)':'var(--amber)'}">${days}d open</span></div><div style="margin-top:8px;font-size:14px"><strong>${entry.item}</strong> <span style="color:var(--text-sec);font-size:13px">— ${entry.section}</span></div>${entry.note?`<div style="font-size:13px;color:var(--text-sec);margin-top:3px">${entry.note}</div>`:''}<div style="font-size:12px;color:var(--text-hint);margin-top:3px">Reported by ${entry.tech} · ${new Date(entry.ts).toLocaleString()}</div>${photoHtml}<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">${emailBtn}<button class="btn sm success" onclick="resolveDefect('${entry.logId}')">✓ Mark Resolved</button></div></div>`;
   }).join('</div>');
 }
-
 function renderAdminMaint(){
-  const c=document.getElementById('admin-maint');
-  const nm=document.getElementById('no-maint');
-  const eligible=fleet.filter(u=>u.type!=='trailer');
+  const c=document.getElementById('admin-maint'),nm=document.getElementById('no-maint');
   const rows=[];
-  eligible.forEach(u=>{
-    MAINT_ITEMS.forEach(m=>{
-      const s=maintStatus(u.id,m.id);
-      if(s.status!=='ok') rows.push({unit:u,item:m,s});
-    });
-  });
-  rows.sort((a,b)=>{
-    const ord={due:0,soon:1};
-    if(ord[a.s.status]!==ord[b.s.status]) return ord[a.s.status]-ord[b.s.status];
-    return a.s.milesLeft-b.s.milesLeft;
-  });
-  if(!rows.length){c.innerHTML='';nm.style.display='block';return;}
-  nm.style.display='none';
+  getVisibleFleet().forEach(u=>{MAINT_ITEMS.filter(m=>m.types.includes(u.type)).forEach(m=>{const s=maintStatus(u.id,m.id);if(s.status!=='ok')rows.push({unit:u,item:m,s});});});
+  rows.sort((a,b)=>{const ord={due:0,soon:1};if(ord[a.s.status]!==ord[b.s.status])return ord[a.s.status]-ord[b.s.status];return a.s.milesLeft-b.s.milesLeft;});
+  if(!rows.length){c.innerHTML='';nm.style.display='block';return;}nm.style.display='none';
+  const vf=getVisibleFleet();
   c.innerHTML=rows.map(({unit:u,item:m,s})=>{
     const cls=s.status==='due'?'due':'soon';
     const pill=s.status==='due'?`<span class="maint-pill-due">⚠ OVERDUE</span>`:`<span class="maint-pill-soon">⏱ Due soon</span>`;
     const barColor=s.status==='due'?'var(--red)':'var(--amber)';
-    return `<div class="maint-card ${cls}">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:18px">${m.icon}</span>
-          <div>
-            <div style="font-weight:600">${u.id} <span class="loc-tag">${u.location||''}</span></div>
-            <div style="font-size:13px;color:var(--text-sec)">${m.name}</div>
-          </div>
-        </div>
-        ${pill}
-      </div>
-      <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${Math.round(s.pct*100)}%;background:${barColor}"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-sec);margin-top:4px">
-        <span>${s.milesLeft>0?s.milesLeft.toLocaleString()+' mi left':Math.abs(s.milesLeft).toLocaleString()+' mi overdue'}</span>
-        <span>${s.daysLeft>0?s.daysLeft+'d left':Math.abs(s.daysLeft)+'d overdue'}</span>
-      </div>
-      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn sm success" onclick="logMaintComplete('${u.id}','${m.id}')">✓ Log Completed</button>
-        <button class="btn sm" onclick="openMaintScreen(${fleet.indexOf(u)})">View Details</button>
-      </div>
-    </div>`;
+    return`<div class="maint-card ${cls}"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${m.icon}</span><div><div style="font-weight:600">${u.id} <span class="loc-tag">${u.location||''}</span></div><div style="font-size:13px;color:var(--text-sec)">${m.name}</div></div></div>${pill}</div><div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${Math.round(s.pct*100)}%;background:${barColor}"></div></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-sec);margin-top:4px"><span>${s.milesLeft>0?s.milesLeft.toLocaleString()+' mi left':Math.abs(s.milesLeft).toLocaleString()+' mi overdue'}</span><span>${s.daysLeft>0?s.daysLeft+'d left':Math.abs(s.daysLeft)+'d overdue'}</span></div><div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm success" onclick="logMaintComplete('${u.id}','${m.id}')">✓ Log Completed</button><button class="btn sm" onclick="openMaintScreen(${vf.indexOf(u)})">View Details</button></div></div>`;
   }).join('');
 }
-
 function renderAdminHistory(){
-  const h=document.getElementById('admin-history');
-  const nh=document.getElementById('no-history');
-  const sorted=[...inspections].sort((a,b)=>b.ts-a.ts);
-  if(!sorted.length){h.innerHTML='';nh.style.display='block';return;}
-  nh.style.display='none';
-  h.innerHTML=sorted.map(r=>`<div class="history-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>${r.unitId}</strong>${r.unitLocation?`<span class="loc-tag">${r.unitLocation}</span>`:''} ${r.defects.length?`<span class="badge defect">⚠ ${r.defects.length} defect${r.defects.length>1?'s':''}</span>`:`<span class="badge ok">✓ Passed</span>`}${r.gps?` <span class="gps-badge">📍</span>`:''}</div><div style="font-size:13px;color:var(--text-sec);margin-top:2px">${new Date(r.ts).toLocaleString()} · ${r.tech}${r.odo?' · '+parseInt(r.odo).toLocaleString()+' mi':''}</div></div><span class="tag">${typeName(r.unitType)}</span></div>`).join('');
+  const h=document.getElementById('admin-history'),nh=document.getElementById('no-history');
+  const myInsps=isAdmin?inspections:inspections.filter(i=>i.unitLocation===userLocation);
+  const sorted=[...myInsps].sort((a,b)=>b.ts-a.ts);
+  if(!sorted.length){h.innerHTML='';nh.style.display='block';return;}nh.style.display='none';
+  h.innerHTML=sorted.map(r=>{
+    const photoCount=r.defects?r.defects.reduce((n,d)=>n+(d.photos?d.photos.length:0),0):0;
+    return`<div class="history-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>${r.unitId}</strong>${r.unitLocation?`<span class="loc-tag">${r.unitLocation}</span>`:''} ${r.defects&&r.defects.length?`<span class="badge defect">⚠ ${r.defects.length} defect${r.defects.length>1?'s':''}</span>`:`<span class="badge ok">✓ Passed</span>`}${r.gps?` <span class="gps-badge">📍</span>`:''}${photoCount?` <span class="tag">📷 ${photoCount}</span>`:''}</div><div style="font-size:13px;color:var(--text-sec);margin-top:2px">${new Date(r.ts).toLocaleString()} · ${r.tech}${r.odo?' · '+parseInt(r.odo).toLocaleString()+' mi':''}</div></div><span class="tag">${typeName(r.unitType)}</span></div>`;
+  }).join('');
 }
-
+async function renderAdminUsers(){
+  const c=document.getElementById('admin-users');
+  c.innerHTML='<div class="empty-state">Loading users…</div>';
+  try{
+    const {data,error}=await sb.auth.admin?sb.auth.admin.listUsers():{data:null,error:{message:'Admin API not available'}};
+    if(error||!data){
+      // Fallback: show current user info
+      c.innerHTML=`<div class="card"><p style="font-size:14px;font-weight:500;margin-bottom:12px">Registered Users</p><p style="font-size:13px;color:var(--text-sec)">User listing requires the Supabase service role key (not available client-side for security). To manage users, go to your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/users" target="_blank" style="color:var(--blue)">Supabase Auth dashboard →</a></p><div style="margin-top:12px"><div class="user-card"><div><div style="font-weight:500">${userProfile.name}</div><div style="font-size:13px;color:var(--text-sec)">${userProfile.email}</div><div style="font-size:12px;color:var(--text-hint);margin-top:2px">Location: ${userProfile.location||'—'}</div></div><span class="role-badge ${isAdmin?'role-admin':'role-gm'}">${isAdmin?'Admin':'GM'}</span></div></div></div>`;
+      return;
+    }
+    c.innerHTML=`<div class="card"><p style="font-size:14px;font-weight:500;margin-bottom:12px">Registered Users (${data.users.length})</p>${data.users.map(u=>{const meta=u.user_metadata||{};return`<div class="user-card"><div><div style="font-weight:500">${meta.full_name||u.email}</div><div style="font-size:13px;color:var(--text-sec)">${u.email}</div><div style="font-size:12px;color:var(--text-hint);margin-top:2px">Location: ${meta.location||'—'} · Joined: ${new Date(u.created_at).toLocaleDateString()}</div></div><span class="role-badge ${u.email===ADMIN_EMAIL?'role-admin':'role-gm'}">${u.email===ADMIN_EMAIL?'Admin':'GM'}</span></div>`;}).join('')}</div>`;
+  }catch(e){c.innerHTML=`<div class="card"><p style="font-size:13px;color:var(--text-sec)">View and manage users in your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/users" target="_blank" style="color:var(--blue)">Supabase Auth dashboard →</a></p></div>`;}
+}
 function renderIntervalSettings(){
   const c=document.getElementById('interval-settings');
-  c.innerHTML=`<div class="grid3" style="margin-bottom:8px;font-size:12px;color:var(--text-sec)"><div>Service item</div><div>Every N miles</div><div>Every N days</div></div>`+
-  MAINT_ITEMS.map(m=>`<div class="grid3" style="margin-bottom:10px;align-items:center">
-    <div style="font-size:13px;font-weight:500">${m.icon} ${m.name}</div>
-    <input type="number" id="int-${m.id}-miles" value="${getInterval(m.id,'miles')}" min="100" step="100" style="padding:6px 8px;font-size:13px">
-    <input type="number" id="int-${m.id}-days" value="${getInterval(m.id,'days')}" min="1" style="padding:6px 8px;font-size:13px">
-  </div>`).join('');
+  const vehicleItems=MAINT_ITEMS.filter(m=>m.types.includes('van'));
+  const trailerItems=MAINT_ITEMS.filter(m=>m.types.includes('trailer'));
+  const hdr=`<div class="grid3" style="margin-bottom:8px;font-size:12px;color:var(--text-sec)"><div>Item</div><div>Every N miles</div><div>Every N days</div></div>`;
+  const row=m=>`<div class="grid3" style="margin-bottom:10px;align-items:center"><div style="font-size:13px;font-weight:500">${m.icon} ${m.name}</div><input type="number" id="int-${m.id}-miles" value="${getInterval(m.id,'miles')}" min="0" step="50" style="padding:6px 8px;font-size:13px"${m.defaultMiles===0?' placeholder="N/A"':''}><input type="number" id="int-${m.id}-days" value="${getInterval(m.id,'days')}" min="1" style="padding:6px 8px;font-size:13px"></div>`;
+  c.innerHTML=`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin-bottom:8px">Vans & Box Trucks</p>${hdr}${vehicleItems.map(row).join('')}<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin:12px 0 8px">Trailers</p>${hdr}${trailerItems.map(row).join('')}`;
 }
-
 function saveIntervalSettings(){
-  MAINT_ITEMS.forEach(m=>{
-    if(!maintIntervals[m.id]) maintIntervals[m.id]={};
-    maintIntervals[m.id].miles=parseInt(document.getElementById(`int-${m.id}-miles`).value)||m.defaultMiles;
-    maintIntervals[m.id].days=parseInt(document.getElementById(`int-${m.id}-days`).value)||m.defaultDays;
-  });
-  save();alert('Intervals saved! ✓');renderFleet();updateOverdueBadge();
+  MAINT_ITEMS.forEach(m=>{if(!maintIntervals[m.id])maintIntervals[m.id]={};maintIntervals[m.id].miles=parseInt(document.getElementById(`int-${m.id}-miles`).value)||m.defaultMiles;maintIntervals[m.id].days=parseInt(document.getElementById(`int-${m.id}-days`).value)||m.defaultDays;});
+  sbSaveSettings();alert('Intervals saved! ✓');renderFleet();updateOverdueBadge();
 }
-
 function renderEscalationSettings(){
   const c=document.getElementById('escalation-settings');
-  c.innerHTML=LOCATIONS.map(loc=>{
-    const s=escalationSettings[loc]||{};
-    return `<div style="margin-bottom:16px"><div style="font-weight:600;font-size:14px;margin-bottom:8px">${loc}</div>
-    <div class="grid2">${ESCALATION_LEVELS.map((l,i)=>`<div><label style="font-size:12px;color:var(--text-sec)">${l.label} (Day ${l.days}+)</label><input type="email" id="esc-${loc}-${i}" value="${(s[['managerEmail','regionalEmail','directorEmail','executiveEmail'][i]])||''}" placeholder="${l.label.toLowerCase()}@co.com" style="margin-top:3px"></div>`).join('')}</div></div>`;
-  }).join('<hr style="border:none;border-top:1px solid var(--border);margin:4px 0 16px">');
+  c.innerHTML=LOCATIONS.map(loc=>{const s=escalationSettings[loc]||{};return`<div style="margin-bottom:16px"><div style="font-weight:600;font-size:14px;margin-bottom:8px">${loc}</div><div class="grid2">${ESCALATION_LEVELS.map((l,i)=>`<div><label style="font-size:12px;color:var(--text-sec)">${l.label} (Day ${l.days}+)</label><input type="email" id="esc-${loc}-${i}" value="${(s[['managerEmail','regionalEmail','directorEmail','executiveEmail'][i]])||''}" placeholder="${l.label.toLowerCase()}@co.com" style="margin-top:3px"></div>`).join('')}</div></div>`;}).join('<hr style="border:none;border-top:1px solid var(--border);margin:4px 0 16px">');
 }
-
 function saveEscalationSettings(){
-  LOCATIONS.forEach(loc=>{
-    escalationSettings[loc]={managerEmail:document.getElementById(`esc-${loc}-0`)?.value||'',regionalEmail:document.getElementById(`esc-${loc}-1`)?.value||'',directorEmail:document.getElementById(`esc-${loc}-2`)?.value||'',executiveEmail:document.getElementById(`esc-${loc}-3`)?.value||''};
-  });
-  save();alert('Contacts saved!');
+  LOCATIONS.forEach(loc=>{escalationSettings[loc]={managerEmail:document.getElementById(`esc-${loc}-0`)?.value||'',regionalEmail:document.getElementById(`esc-${loc}-1`)?.value||'',directorEmail:document.getElementById(`esc-${loc}-2`)?.value||'',executiveEmail:document.getElementById(`esc-${loc}-3`)?.value||''};});
+  sbSaveSettings();alert('Contacts saved! ✓');
 }
 
 // ─── FLEET ────────────────────────────────────────────────────────────────────
 function typeName(t){return t==='van'?'Van/Pickup':t==='trailer'?'Trailer':'Box Truck (10k+)';}
 function setFilter(f){activeFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.filter===f));renderFleet();}
-
 function renderFleet(){
   const q=(document.getElementById('search-input').value||'').toLowerCase();
-  const list=document.getElementById('fleet-list');
-  const empty=document.getElementById('home-empty');
-  let filtered=fleet.filter(u=>{
-    if(activeFilter==='van'&&u.type!=='van') return false;
-    if(activeFilter==='heavy'&&u.type!=='heavy') return false;
-    if(activeFilter==='trailer'&&u.type!=='trailer') return false;
-    if(activeFilter==='maint-due'&&u.type==='trailer') return false;
-    if(activeFilter==='maint-due'){const ms=unitMaintSummary(u.id,u.type);if(!ms.due) return false;}
-    // Search across all relevant fields including location, type name, and model
-    const searchStr = [
-      u.id, u.make, u.vin, u.location, u.year,
-      u.type==='van'?'van pickup':u.type==='trailer'?'trailer':'box truck heavy',
-      u.notes||''
-    ].join(' ').toLowerCase();
-    if(q && !q.trim().split(/\s+/).every(term => searchStr.includes(term))) return false;
+  const list=document.getElementById('fleet-list'),empty=document.getElementById('home-empty');
+  const vf=getVisibleFleet();
+  let filtered=vf.filter(u=>{
+    if(activeFilter==='van'&&u.type!=='van')return false;
+    if(activeFilter==='heavy'&&u.type!=='heavy')return false;
+    if(activeFilter==='trailer'&&u.type!=='trailer')return false;
+    if(activeFilter==='maint-due'){const ms=unitMaintSummary(u.id,u.type);if(!ms.due)return false;}
+    const searchStr=[u.id,u.make,u.vin,u.location,u.year,typeName(u.type)].join(' ').toLowerCase();
+    if(q&&!q.trim().split(/\s+/).every(t=>searchStr.includes(t)))return false;
     return true;
   });
-  if(!filtered.length){list.innerHTML='';empty.style.display='block';return;}
-  empty.style.display='none';
+  if(!filtered.length){list.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
   list.innerHTML=filtered.map(u=>{
-    const i=fleet.indexOf(u);
+    const i=vf.indexOf(u);
     const last=inspections.filter(x=>x.unitId===u.id).sort((a,b)=>b.ts-a.ts)[0];
-    const badge=last?(last.defects.length?`<span class="badge defect">⚠ ${last.defects.length} defect${last.defects.length>1?'s':''}</span>`:`<span class="badge ok">✓ Passed</span>`):`<span class="badge pending">Not inspected</span>`;
+    const badge=last?(last.defects&&last.defects.length?`<span class="badge defect">⚠ ${last.defects.length} defect${last.defects.length>1?'s':''}</span>`:`<span class="badge ok">✓ Passed</span>`):`<span class="badge pending">Not inspected</span>`;
     const openD=defectLog.filter(d=>d.unitId===u.id&&!d.resolved);
     const maxEsc=openD.reduce((m,d)=>Math.max(m,escalationLevel(d)),-1);
     const escWarn=maxEsc>=0?`<span class="esc-pill ${ESCALATION_LEVELS[maxEsc].cls}">${ESCALATION_LEVELS[maxEsc].label}</span>`:'';
     const ms=unitMaintSummary(u.id,u.type);
     const maintWarn=ms.due>0?`<span class="maint-pill-due">🔧 ${ms.due} due</span>`:ms.soon>0?`<span class="maint-pill-soon">🔧 ${ms.soon} soon</span>`:'';
     const odo=getOdo(u.id);
-    const odoStr=odo.miles?`${odo.miles.toLocaleString()} mi`:'';
-    return `<div class="fleet-card">
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-size:16px;font-weight:600">${u.id}</span>
-          <span class="tag">${typeName(u.type)}</span>
-          ${u.location?`<span class="loc-tag">${u.location}</span>`:''}
-          ${escWarn}${maintWarn}
-        </div>
-        <div style="font-size:13px;color:var(--text-sec);margin-top:2px">${[u.make,u.year].filter(Boolean).join(' ')||'—'} ${badge}${odoStr?` <span style="font-size:11px;color:var(--text-hint)">· ${odoStr}</span>`:''}</div>
-        ${u.vin&&u.vin!='None'?`<div style="font-size:11px;color:var(--text-hint);margin-top:1px">VIN: ${u.vin}</div>`:''}
-        ${last?`<div style="font-size:12px;color:var(--text-hint);margin-top:2px">Last inspected: ${new Date(last.ts).toLocaleDateString()} by ${last.tech||'?'}</div>`:''}
-      </div>
-      <div class="fleet-actions">
-        <button class="btn sm primary" onclick="startInspection(${i})">Inspect</button>
-        ${u.type!=='trailer'?`<button class="btn sm ${ms.due>0?'warning':''}" onclick="openMaintScreen(${i})">🔧 Maint</button>`:''}
-        <button class="btn sm" onclick="showQR(${i})">QR</button>
-      </div>
-    </div>`;
+    return`<div class="fleet-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:16px;font-weight:600">${u.id}</span><span class="tag">${typeName(u.type)}</span>${u.location?`<span class="loc-tag">${u.location}</span>`:''}${escWarn}${maintWarn}</div><div style="font-size:13px;color:var(--text-sec);margin-top:2px">${[u.make,u.year].filter(Boolean).join(' ')||'—'} ${badge}${odo.miles?` <span style="font-size:11px;color:var(--text-hint)">· ${odo.miles.toLocaleString()} mi</span>`:''}</div>${u.vin&&u.vin!='None'?`<div style="font-size:11px;color:var(--text-hint);margin-top:1px">VIN: ${u.vin}</div>`:''}</div><div class="fleet-actions"><button class="btn sm primary" onclick="startInspection(${i})">Inspect</button><button class="btn sm ${ms.due>0?'warning':''}" onclick="openMaintScreen(${i})">🔧 Maint</button><button class="btn sm" onclick="showQR(${i})">QR</button></div></div>`;
   }).join('');
 }
 
 function addUnit(){
   const id=document.getElementById('add-id').value.trim();
   if(!id){alert('Please enter a Unit ID');return;}
-  fleet.push({id,type:document.getElementById('add-type').value,make:document.getElementById('add-make').value,year:document.getElementById('add-year').value,vin:document.getElementById('add-vin').value,location:document.getElementById('add-location').value,email:document.getElementById('add-email').value});
-  sbSaveSettings();renderFleet();['add-id','add-make','add-year','add-vin','add-location','add-email'].forEach(f=>document.getElementById(f).value='');
+  const loc=document.getElementById('add-location').value;
+  if(!loc){alert('Please select a location');return;}
+  fleet.push({id,type:document.getElementById('add-type').value,make:document.getElementById('add-make').value,year:document.getElementById('add-year').value,vin:document.getElementById('add-vin').value,location:loc});
+  sbSaveSettings();renderFleet();
+  ['add-id','add-make','add-year','add-vin'].forEach(f=>document.getElementById(f).value='');
+  document.getElementById('add-location').value='';
   showScreen('screen-home');
 }
 
-function showScreen(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  window.scrollTo(0,0);
-  if(id==='screen-admin') renderAdmin();
-}
-
-function showQR(i){
-  currentQRUnit=i;const u=fleet[i];
-  const base=BASE_URL||window.location.href.split('?')[0];
-  const url=base+'?unit='+encodeURIComponent(u.id);
-  document.getElementById('qr-title').textContent='QR — '+u.id;
-  document.getElementById('qr-url').textContent=url;
-  new QRious({element:document.getElementById('qr-canvas'),value:url,size:220,background:'#ffffff',foreground:'#1a1a18'});
-  showScreen('screen-qr');
-}
-function downloadQR(){const c=document.getElementById('qr-canvas');const a=document.createElement('a');a.download='qr-'+fleet[currentQRUnit].id+'.png';a.href=c.toDataURL();a.click();}
-
-function captureGPS(){
-  const btn=document.getElementById('gps-btn'),status=document.getElementById('gps-status'),result=document.getElementById('gps-result');
-  if(!navigator.geolocation){status.textContent='— not supported';return;}
-  btn.textContent='Getting...';btn.disabled=true;
-  navigator.geolocation.getCurrentPosition(pos=>{
-    gpsData={lat:pos.coords.latitude.toFixed(6),lng:pos.coords.longitude.toFixed(6),acc:Math.round(pos.coords.accuracy)};
-    status.textContent='— captured';
-    result.style.display='block';result.innerHTML=`<span class="gps-badge">📍 ${gpsData.lat}, ${gpsData.lng} (±${gpsData.acc}m)</span> <a href="https://maps.google.com/?q=${gpsData.lat},${gpsData.lng}" target="_blank" style="font-size:11px;color:var(--blue);margin-left:4px">View map</a>`;
-    btn.textContent='📍 Update Location';btn.disabled=false;
-  },err=>{status.textContent='— error';btn.textContent='📍 Capture Location';btn.disabled=false;result.style.display='block';result.textContent='Error: '+err.message;},{enableHighAccuracy:true,timeout:10000});
-}
-
+// ─── INSPECTION ───────────────────────────────────────────────────────────────
+let currentInspectionId = null;
 function startInspection(i){
-  currentUnit=i;gpsData=null;const u=fleet[i];
+  const vf=getVisibleFleet();
+  currentUnit=fleet.indexOf(vf[i]);gpsData=null;inspectionPhotos={};
+  const u=vf[i];
+  currentInspectionId='INS-'+Date.now();
   document.getElementById('insp-title').textContent='Unit '+u.id;
   document.getElementById('insp-sub').textContent=typeName(u.type)+(u.make?' · '+u.make+' '+(u.year||''):'')+(u.location?' · '+u.location:'');
   document.getElementById('insp-date').value=new Date().toLocaleString();
-  ['tech-name','insp-notes'].forEach(f=>document.getElementById(f).value='');
+  document.getElementById('tech-name').value=userProfile?.name||'';
+  document.getElementById('insp-notes').value='';
   document.getElementById('insp-odo').value=getOdo(u.id).miles||'';
   document.getElementById('gps-status').textContent='— tap to capture';
   document.getElementById('gps-btn').textContent='📍 Capture Location';document.getElementById('gps-btn').disabled=false;
@@ -983,18 +905,24 @@ function startInspection(i){
     html+=`<div class="card"><p class="sec-head">${sec}</p>`;
     items.forEach((item,idx)=>{
       const key='s'+sec.replace(/\W/g,'')+idx;
-      html+=`<div class="insp-item"><span class="insp-label">${item}</span><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="radio-group"><label><input type="radio" name="${key}" value="ok"><span style="color:var(--green)">OK</span></label><label><input type="radio" name="${key}" value="defect"><span style="color:var(--red)">Defect</span></label><label><input type="radio" name="${key}" value="na"><span>N/A</span></label></div><input class="defect-note" type="text" placeholder="Describe defect..." id="note-${key}"></div></div>`;
+      html+=`<div class="insp-item"><div class="insp-item-top"><span class="insp-label">${item}</span><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="radio-group"><label><input type="radio" name="${key}" value="ok"><span style="color:var(--green)">OK</span></label><label><input type="radio" name="${key}" value="defect"><span style="color:var(--red)">Defect</span></label><label><input type="radio" name="${key}" value="na"><span>N/A</span></label></div></div></div><input class="defect-note" type="text" placeholder="Describe defect…" id="note-${key}"><div class="photo-row" id="photo-row-${key}"><div class="photo-add-btn" data-photo-btn="${key}" onclick="triggerPhotoUpload('${key}','${currentInspectionId}')">📷</div></div></div>`;
     });
     html+=`</div>`;
   }
   document.getElementById('insp-sections').innerHTML=html;
   document.querySelectorAll('#insp-sections input[type=radio]').forEach(r=>{
-    r.addEventListener('change',function(){const n=document.getElementById('note-'+this.name);n.style.display=this.value==='defect'?'block':'none';if(this.value!=='defect') n.value='';});
+    r.addEventListener('change',function(){
+      const n=document.getElementById('note-'+this.name);
+      const pr=document.getElementById('photo-row-'+this.name);
+      n.style.display=this.value==='defect'?'block':'none';
+      if(this.value!=='defect')n.value='';
+      if(pr){pr.classList.toggle('visible',this.value==='defect'||this.value==='ok');}
+    });
   });
   showScreen('screen-inspect');
 }
 
-function submitInspection(){
+async function submitInspection(){
   const tech=document.getElementById('tech-name').value.trim();
   if(!tech){alert('Please enter your name.');return;}
   const u=fleet[currentUnit];const secs=ITEMS[u.type];
@@ -1003,55 +931,73 @@ function submitInspection(){
     items.forEach((item,idx)=>{
       const key='s'+sec.replace(/\W/g,'')+idx;
       const checked=document.querySelector(`input[name="${key}"]:checked`);
-      if(!checked) unchecked.push(item);
-      else if(checked.value==='defect') defects.push({section:sec,item,note:document.getElementById('note-'+key).value});
+      if(!checked)unchecked.push(item);
+      else if(checked.value==='defect')defects.push({section:sec,item,note:document.getElementById('note-'+key).value,photos:inspectionPhotos[key]||[]});
     });
   }
-  if(unchecked.length>0&&!confirm(`${unchecked.length} item(s) not checked. Submit anyway?`)) return;
+  if(unchecked.length>0&&!confirm(`${unchecked.length} item(s) not checked. Submit anyway?`))return;
+  const btn=document.getElementById('submit-insp-btn');
+  btn.innerHTML='<span class="spinner"></span> Submitting…';btn.disabled=true;
   const odoVal=parseInt(document.getElementById('insp-odo').value)||0;
-  if(odoVal>0) setOdo(u.id,odoVal,'inspection');
-  const record={id:'INS-'+Date.now(),unitId:u.id,unitType:u.type,unitLocation:u.location,tech,odo:odoVal,notes:document.getElementById('insp-notes').value,ts:Date.now(),defects,gps:gpsData||null};
+  if(odoVal>0)setOdo(u.id,odoVal,'inspection');
+  const record={id:currentInspectionId,unitId:u.id,unitType:u.type,unitLocation:u.location,tech,odo:odoVal,notes:document.getElementById('insp-notes').value,ts:Date.now(),defects,gps:gpsData||null,submittedBy:currentUser?.email||''};
   inspections.push(record);syncDefectLog();
-  sbSaveInspection(record);
-  sbSaveDefectLog();
-  save();renderFleet();updateOverdueBadge();
+  await sbSaveInspection(record);await sbSaveDefectLog();
+  btn.innerHTML='Submit Inspection';btn.disabled=false;
+  renderFleet();updateOverdueBadge();
   renderSummary(record,u);showScreen('screen-summary');
 }
 
 function renderSummary(rec,u){
   const alertDiv=document.getElementById('summary-alert');
-  if(rec.defects.length) alertDiv.innerHTML=`<div class="alert-box danger"><div><strong>⚠ ${rec.defects.length} defect${rec.defects.length>1?'s':''} flagged</strong> on ${u.id}. Escalation begins in 1 day if unresolved.</div></div>`;
+  if(rec.defects.length)alertDiv.innerHTML=`<div class="alert-box danger"><div><strong>⚠ ${rec.defects.length} defect${rec.defects.length>1?'s':''} flagged</strong> on ${u.id}. Escalation begins in 1 day if unresolved.</div></div>`;
   else alertDiv.innerHTML=`<div class="alert-box success"><strong>✓ All clear — ${u.id} passed inspection.</strong></div>`;
   const maintAlertDiv=document.getElementById('summary-maint-alert');
-  if(u.type!=='trailer'){
-    const ms=unitMaintSummary(u.id,u.type);
-    if(ms.due>0) maintAlertDiv.innerHTML=`<div class="alert-box warning"><div><strong>🔧 ${ms.due} maintenance item${ms.due>1?'s':''} overdue</strong> on ${u.id}. <button class="btn sm" style="margin-left:8px" onclick="openMaintScreen(${fleet.indexOf(u)})">View details</button></div></div>`;
-    else if(ms.soon>0) maintAlertDiv.innerHTML=`<div class="alert-box warning"><strong>🔧 ${ms.soon} maintenance item${ms.soon>1?'s':''} due soon</strong> on ${u.id}.</div>`;
-    else maintAlertDiv.innerHTML='';
-  } else maintAlertDiv.innerHTML='';
+  {const ms=unitMaintSummary(u.id,u.type);if(ms.due>0)maintAlertDiv.innerHTML=`<div class="alert-box warning"><strong>🔧 ${ms.due} maintenance item${ms.due>1?'s':''} overdue</strong> on ${u.id}.</div>`;else maintAlertDiv.innerHTML='';}
   let defHtml='';
   if(rec.defects.length){
     defHtml=`<p class="sec-head" style="margin:12px 0 4px">Defects (${rec.defects.length})</p>`;
-    rec.defects.forEach(d=>{defHtml+=`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:14px"><strong>${d.item}</strong><span style="color:var(--text-sec);font-size:13px"> — ${d.section}${d.note?' · '+d.note:''}</span></div>`;});
+    rec.defects.forEach(d=>{
+      const photoHtml=d.photos&&d.photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${d.photos.map(p=>`<img class="photo-thumb" src="${p.url}" onclick="openPhotoModal('${p.url}')">`).join('')}</div>`:'';
+      defHtml+=`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:14px"><strong>${d.item}</strong><span style="color:var(--text-sec);font-size:13px"> — ${d.section}${d.note?' · '+d.note:''}</span>${photoHtml}</div>`;
+    });
   }
-  const gpsHtml=rec.gps?`<div><div style="font-size:12px;color:var(--text-sec)">GPS</div><span class="gps-badge">📍 ${rec.gps.lat}, ${rec.gps.lng}</span> <a href="https://maps.google.com/?q=${rec.gps.lat},${rec.gps.lng}" target="_blank" style="font-size:11px;color:var(--blue)">View map</a></div>`:'';
-  document.getElementById('summary-content').innerHTML=`<div class="grid2" style="margin-bottom:12px"><div><div style="font-size:12px;color:var(--text-sec)">Unit</div><div style="font-weight:600">${u.id}${u.location?' ('+u.location+')':''}</div></div><div><div style="font-size:12px;color:var(--text-sec)">Technician</div><div style="font-weight:600">${rec.tech}</div></div><div><div style="font-size:12px;color:var(--text-sec)">Date</div><div>${new Date(rec.ts).toLocaleString()}</div></div><div><div style="font-size:12px;color:var(--text-sec)">Odometer</div><div>${rec.odo?parseInt(rec.odo).toLocaleString()+' mi':'—'}</div></div>${gpsHtml}${u.vin&&u.vin!='None'?`<div style="grid-column:1/-1"><div style="font-size:12px;color:var(--text-sec)">VIN</div><div style="font-size:13px">${u.vin}</div></div>`:''}</div>${defHtml}${rec.notes?`<p class="sec-head" style="margin-top:12px">Notes</p><p style="font-size:14px;margin-top:4px">${rec.notes}</p>`:''}`;
+  const gpsHtml=rec.gps?`<div><div style="font-size:12px;color:var(--text-sec)">GPS</div><span class="gps-badge">📍 ${rec.gps.lat}, ${rec.gps.lng}</span></div>`:'';
+  document.getElementById('summary-content').innerHTML=`<div class="grid2" style="margin-bottom:12px"><div><div style="font-size:12px;color:var(--text-sec)">Unit</div><div style="font-weight:600">${u.id}${u.location?' ('+u.location+')':''}</div></div><div><div style="font-size:12px;color:var(--text-sec)">Technician</div><div style="font-weight:600">${rec.tech}</div></div><div><div style="font-size:12px;color:var(--text-sec)">Date</div><div>${new Date(rec.ts).toLocaleString()}</div></div><div><div style="font-size:12px;color:var(--text-sec)">Odometer</div><div>${rec.odo?parseInt(rec.odo).toLocaleString()+' mi':'—'}</div></div>${gpsHtml}</div>${defHtml}${rec.notes?`<p class="sec-head" style="margin-top:12px">Notes</p><p style="font-size:14px;margin-top:4px">${rec.notes}</p>`:''}`;
 }
 
-async function checkSupabaseTables(){
-  const el=document.getElementById('sb-check-result');
-  el.textContent='Checking…';
-  const tables=['fi_settings','fi_inspections','fi_defect_log','fi_maint_log','fi_odometer'];
-  const results=await Promise.all(tables.map(async t=>{
-    try{
-      const {error}=await sb.from(t).select('*',{count:'exact',head:true});
-      return error?`❌ ${t}: ${error.message}`:`✓ ${t}`;
-    }catch(e){return `❌ ${t}: ${e.message}`;}
-  }));
-  el.innerHTML=results.map(r=>`<div>${r}</div>`).join('');
+// ─── GPS ──────────────────────────────────────────────────────────────────────
+function captureGPS(){
+  const btn=document.getElementById('gps-btn'),status=document.getElementById('gps-status'),result=document.getElementById('gps-result');
+  if(!navigator.geolocation){status.textContent='— not supported';return;}
+  btn.textContent='Getting…';btn.disabled=true;
+  navigator.geolocation.getCurrentPosition(pos=>{
+    gpsData={lat:pos.coords.latitude.toFixed(6),lng:pos.coords.longitude.toFixed(6),acc:Math.round(pos.coords.accuracy)};
+    status.textContent='— captured';result.style.display='block';
+    result.innerHTML=`<span class="gps-badge">📍 ${gpsData.lat}, ${gpsData.lng} (±${gpsData.acc}m)</span> <a href="https://maps.google.com/?q=${gpsData.lat},${gpsData.lng}" target="_blank" style="font-size:11px;color:var(--blue);margin-left:4px">View map</a>`;
+    btn.textContent='📍 Update Location';btn.disabled=false;
+  },err=>{status.textContent='— error';btn.textContent='📍 Capture Location';btn.disabled=false;result.style.display='block';result.textContent='Error: '+err.message;},{enableHighAccuracy:true,timeout:10000});
 }
 
-load();
+// ─── QR ───────────────────────────────────────────────────────────────────────
+function showQR(i){
+  const vf=getVisibleFleet();currentQRUnit=i;const u=vf[i];
+  const base=BASE_URL||window.location.href.split('?')[0];
+  const url=base+'?unit='+encodeURIComponent(u.id);
+  document.getElementById('qr-title').textContent='QR — '+u.id;
+  document.getElementById('qr-url').textContent=url;
+  new QRious({element:document.getElementById('qr-canvas'),value:url,size:220,background:'#ffffff',foreground:'#1a1a18'});
+  showScreen('screen-qr');
+}
+function downloadQR(){const c=document.getElementById('qr-canvas');const a=document.createElement('a');a.download='qr-'+getVisibleFleet()[currentQRUnit].id+'.png';a.href=c.toDataURL();a.click();}
+
+// ─── SCREEN NAV ───────────────────────────────────────────────────────────────
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+  if(id==='screen-admin')renderAdmin();
+}
 </script>
 </body>
 </html>
