@@ -417,8 +417,9 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // ─── ADMIN EMAILS ─────────────────────────────────────────────────────────────
 // Add any email addresses here that should have full admin access (all locations)
 const ADMIN_EMAILS = [
-  "admin@awrs.com",       // ← replace with your admin email(s)
-  // "manager@awrs.com",  // add more admins here
+  "adamlipps@alloywheel.com",
+  "georgediaz@alloywheel.com",
+  "mikeriley@alloywheel.com",
 ];
 let sb;
 try {
@@ -512,6 +513,11 @@ async function doForgotPassword(){
   if(error) alert('Error: '+error.message);
   else alert('Password reset email sent!');
 }
+
+// Global delegated click for sign out (works regardless of when DOM renders)
+document.addEventListener('click', function(e) {
+  if(e.target && e.target.id === 'signout-btn') doSignOut();
+});
 
 async function doSignOut(){
   try {
@@ -1112,9 +1118,6 @@ window.addEventListener('load', function() {
   document.getElementById('forgot-btn').onclick = doForgotPassword;
   document.getElementById('login-password').onkeydown = e => { if(e.key==='Enter') doLogin(); };
   document.getElementById('reg-password').onkeydown = e => { if(e.key==='Enter') doRegister(); };
-  // Sign out button
-  const soBtn = document.getElementById('signout-btn');
-  if(soBtn) soBtn.onclick = doSignOut;
   console.log('Events bound successfully');
 });
 </script>
