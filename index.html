@@ -212,7 +212,7 @@ textarea{resize:vertical}
     <div style="display:flex;gap:8px;align-items:center">
       <span id="sync-status" style="font-size:11px;color:var(--text-sec)"></span>
       <button class="btn sm" id="admin-btn" onclick="showScreen('screen-admin')" style="display:none">Admin <span id="overdue-badge" class="overdue-count" style="display:none">0</span></button>
-      <button class="btn sm" onclick="doSignOut()">Sign Out</button>
+      <button class="btn sm" id="signout-btn">Sign Out</button>
     </div>
   </div>
   <div class="content">
@@ -411,7 +411,7 @@ textarea{resize:vertical}
 
 <script>
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const BASE_URL = "";
+const BASE_URL = "https://awrs-adam.github.io/AWRSFleet";
 const SUPABASE_URL = "https://tlqxcpybsrolgsglwehr.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRscXhjcHlic3JvbGdzZ2x3ZWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjAyMTMsImV4cCI6MjA5NjU5NjIxM30.C6RNumDgJz75IcijCDtVk94KbGKCcibcMduNAJPZa_s";
 // ─── ADMIN EMAILS ─────────────────────────────────────────────────────────────
@@ -514,8 +514,13 @@ async function doForgotPassword(){
 }
 
 async function doSignOut(){
-  await sb.auth.signOut();
-  window.location.href = window.location.href.split('?')[0];
+  try {
+    await sb.auth.signOut();
+  } catch(e) {
+    console.warn('signOut error:', e);
+  }
+  // Force reload regardless
+  window.location.href = window.location.pathname;
 }
 
 // ─── AUTH STATE ───────────────────────────────────────────────────────────────
@@ -543,8 +548,15 @@ sb.auth.onAuthStateChange(async(event,session)=>{
 let _syncTimer=null;
 function showSyncStatus(msg,type='info'){
   const el=document.getElementById('sync-status');if(!el)return;
-  el.textContent=msg;el.style.color=type==='error'?'var(--red)':type==='ok'?'var(--green)':'var(--text-sec)';
-  clearTimeout(_syncTimer);if(type!=='loading')_syncTimer=setTimeout(()=>{el.textContent='';},3000);
+  el.textContent=msg;
+  el.style.color=type==='error'?'var(--red)':type==='ok'?'var(--green)':'var(--text-sec)';
+  clearTimeout(_syncTimer);
+  if(type==='loading'){
+    // Auto-clear after 10s in case something hangs
+    _syncTimer=setTimeout(()=>{el.textContent='';},10000);
+  } else {
+    _syncTimer=setTimeout(()=>{el.textContent='';},3000);
+  }
 }
 
 // ─── LOCAL FALLBACK ───────────────────────────────────────────────────────────
@@ -678,7 +690,8 @@ function maintStatus(unitId,itemId){
   const milesSince=currentMiles-lastMiles,daysSince=lastTs?Math.floor((Date.now()-lastTs)/86400000):9999;
   const milesLeft=intMiles-milesSince,daysLeft=intDays-daysSince;
   const pct=Math.max(Math.min(milesSince/intMiles,1),Math.min(daysSince/intDays,1));
-  let status='ok';if(milesLeft<=0||daysLeft<=0)status='due';else if(milesLeft<=500||daysLeft<=14)status='soon';
+  const skipMiles=intMiles===0;  // 0 means miles-based check not applicable
+  let status='ok';if((!skipMiles&&milesLeft<=0)||daysLeft<=0)status='due';else if((!skipMiles&&milesLeft<=500)||daysLeft<=14)status='soon';
   return{status,milesLeft,daysLeft,milesSince,daysSince,pct,intMiles,intDays};
 }
 function unitMaintSummary(unitId,type){
@@ -1073,8 +1086,7 @@ function captureGPS(){
 // ─── QR ───────────────────────────────────────────────────────────────────────
 function showQR(i){
   const vf=getVisibleFleet();currentQRUnit=i;const u=vf[i];
-  const base=(BASE_URL||window.location.href.split('?')[0]).replace('index.html','').replace(/\/$/,'');
-  const url=base+'/inspect.html?unit='+encodeURIComponent(u.id);
+  const url=BASE_URL+'/inspect.html?unit='+encodeURIComponent(u.id);
   document.getElementById('qr-title').textContent='QR — '+u.id;
   document.getElementById('qr-url').textContent=url;
   new QRious({element:document.getElementById('qr-canvas'),value:url,size:220,background:'#ffffff',foreground:'#1a1a18'});
@@ -1100,6 +1112,9 @@ window.addEventListener('load', function() {
   document.getElementById('forgot-btn').onclick = doForgotPassword;
   document.getElementById('login-password').onkeydown = e => { if(e.key==='Enter') doLogin(); };
   document.getElementById('reg-password').onkeydown = e => { if(e.key==='Enter') doRegister(); };
+  // Sign out button
+  const soBtn = document.getElementById('signout-btn');
+  if(soBtn) soBtn.onclick = doSignOut;
   console.log('Events bound successfully');
 });
 </script>
