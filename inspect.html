@@ -269,19 +269,26 @@ async function submitInspection() {
   if (!tech) { alert('Please enter your name before submitting.'); document.getElementById('tech-name').focus(); return; }
 
   const secs = ITEMS[currentUnit.type];
-  let defects = [], unchecked = [];
+  let defects = [], unchecked = [], allItems = [];
   for (const [sec, items] of Object.entries(secs)) {
     items.forEach((item, idx) => {
       const key = 's' + sec.replace(/\W/g, '') + idx;
       const checked = document.querySelector(`input[name="${key}"]:checked`);
-      if (!checked) unchecked.push(item);
-      else if (checked.value === 'defect') defects.push({ section: sec, item, note: document.getElementById('note-' + key).value, photos: inspectionPhotos[key] || [] });
+      if (!checked) {
+        unchecked.push(item);
+        allItems.push({ section: sec, item, result: 'unchecked', note: '', photos: [] });
+      } else {
+        const note = checked.value === 'defect' ? document.getElementById('note-' + key).value : '';
+        allItems.push({ section: sec, item, result: checked.value, note, photos: [] });
+        if (checked.value === 'defect') defects.push({ section: sec, item, note, photos: [] });
+      }
     });
   }
-  if (unchecked.length > 0 && !confirm(`${unchecked.length} item(s) not checked. Submit anyway?`)) return;
+  if (unchecked.length > 0 && !confirm(unchecked.length + ' item(s) not checked. Submit anyway?')) return;
 
+  // Show summary IMMEDIATELY - no waiting
   const btn = document.getElementById('submit-btn');
-  btn.innerHTML = '<span class="spinner"></span> Submitting…'; btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Saving…'; btn.disabled = true;
 
   const odoVal = parseInt(document.getElementById('insp-odo').value) || 0;
   const record = {
@@ -299,55 +306,39 @@ async function submitInspection() {
     submittedBy: 'field-scan'
   };
 
-  try {
-    // Set a 10 second timeout on submission
-    const submitTimeout = new Promise((_,reject) => setTimeout(() => reject(new Error('timeout')), 10000));
-    
-    const doSubmit = async () => {
-      const { error: inspErr } = await sb.from('fi_inspections').upsert({ id: record.id, data: record }, { onConflict: 'id' });
-      if (inspErr) throw inspErr;
-      if (defects.length) {
-        const defectRows = defects.map((d, di) => ({
-          log_id: record.id + '-' + di,
-          data: {
-            logId: record.id + '-' + di,
-            inspectionId: record.id,
-            unitId: record.unitId,
-            unitLocation: record.unitLocation || '',
-            unitType: record.unitType,
-            tech: record.tech,
-            ts: record.ts,
-            section: d.section,
-            item: d.item,
-            note: d.note || '',
-            photos: d.photos || [],
-            resolved: false,
-            resolvedBy: '',
-            resolvedTs: null,
-            resolvedNote: ''
-          }
-        }));
-        const { error: defErr } = await sb.from('fi_defect_log').upsert(defectRows, { onConflict: 'log_id' });
-        if (defErr) throw defErr;
-      }
-      if (odoVal > 0) {
-        await sb.from('fi_odometer').upsert({ unit_id: currentUnit.id, data: { miles: odoVal, ts: Date.now(), source: 'inspection' } }, { onConflict: 'unit_id' });
-      }
-    };
+  // Show summary right away
+  showSummary(record);
 
-    await Promise.race([doSubmit(), submitTimeout]);
-    showSummary(record);
-    // Upload any pending photos in background after summary shown
-    uploadPendingPhotos(record.id);
-  } catch(e) {
-    // If timeout, still show summary - data may have saved
-    if (e.message === 'timeout') {
-      showSummary(record);
-    } else {
-      btn.innerHTML = 'Submit Inspection'; btn.disabled = false;
-      alert('Submission failed: ' + e.message + '\n\nPlease try again or contact your manager.');
+  // Save to Supabase in background - don't block UI
+  saveInBackground(record, odoVal);
+}
+
+async function saveInBackground(record, odoVal) {
+  try {
+    await sb.from('fi_inspections').upsert({ id: record.id, data: record }, { onConflict: 'id' });
+  } catch(e) { console.warn('Background save failed:', e); }
+  
+  try {
+    if (record.defects.length) {
+      const rows = record.defects.map((d, di) => ({
+        log_id: record.id + '-' + di,
+        data: { logId: record.id+'-'+di, inspectionId: record.id, unitId: record.unitId,
+          unitLocation: record.unitLocation||'', unitType: record.unitType, tech: record.tech,
+          ts: record.ts, section: d.section, item: d.item, note: d.note||'',
+          photos: [], resolved: false, resolvedBy: '', resolvedTs: null, resolvedNote: '' }
+      }));
+      await sb.from('fi_defect_log').upsert(rows, { onConflict: 'log_id' });
     }
-  }
+  } catch(e) { console.warn('Defect save failed:', e); }
+
+  try {
+    if (odoVal > 0) {
+      await sb.from('fi_odometer').upsert(
+        { unit_id: record.unitId, data: { miles: odoVal, ts: Date.now(), source: 'inspection' } },
+        { onConflict: 'unit_id' }
+      );
+    }
+  } catch(e) { console.warn('Odometer save failed:', e); }
 }
 
 // ─── BACKGROUND PHOTO UPLOAD ─────────────────────────────────────────────────
