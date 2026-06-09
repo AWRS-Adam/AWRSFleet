@@ -538,13 +538,16 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     currentUser=session.user;
     const meta=currentUser.user_metadata||{};
     userProfile={name:meta.full_name||currentUser.email.split('@')[0],email:currentUser.email,location:meta.location||'',role:meta.role||'gm'};
-    isAdmin=ADMIN_EMAILS.includes(currentUser.email);
+    isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes(currentUser.email.toLowerCase());
     userLocation=isAdmin?null:(userProfile.location||null);
     console.log('Auth:', currentUser.email, 'isAdmin:', isAdmin, 'location:', userLocation);
     document.getElementById('auth-wrap').style.display='none';
     document.getElementById('app-wrap').style.display='block';
     document.getElementById('topbar-location').textContent=isAdmin?'Admin — All Locations':(userProfile.name+' · '+(userLocation||''));
-    if(isAdmin) document.getElementById('admin-btn').style.display='inline-flex';
+    if(isAdmin){
+      document.getElementById('admin-btn').style.display='inline-flex';
+      document.getElementById('topbar-location').textContent='Admin — All Locations';
+    }
     await initApp();
   } else {
     document.getElementById('auth-wrap').style.display='flex';
