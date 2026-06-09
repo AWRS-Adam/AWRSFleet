@@ -223,9 +223,9 @@ async function triggerPhoto(key) {
     try {
       const ext = file.name.split('.').pop() || 'jpg';
       const path = `inspections/${inspectionId}/${key}-${Date.now()}.${ext}`;
-      const { error } = await sb.storage.from('fleet-photos').upload(path, file, { contentType: file.type });
+      const { error } = await sb.storage.from('Fleet-Photos').upload(path, file, { contentType: file.type });
       if (error) throw error;
-      const { data: urlData } = sb.storage.from('fleet-photos').getPublicUrl(path);
+      const { data: urlData } = sb.storage.from('Fleet-Photos').getPublicUrl(path);
       if (!inspectionPhotos[key]) inspectionPhotos[key] = [];
       inspectionPhotos[key].push({ url: urlData.publicUrl, path });
       renderPhotoRow(key);

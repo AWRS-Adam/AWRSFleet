@@ -647,9 +647,9 @@ async function sbSaveOdometer(unitId){
 async function uploadPhoto(file, inspectionId, itemKey){
   const ext=file.name.split('.').pop()||'jpg';
   const path=`inspections/${inspectionId}/${itemKey}-${Date.now()}.${ext}`;
-  const {data,error}=await sb.storage.from('fleet-photos').upload(path,file,{upsert:false,contentType:file.type});
+  const {data,error}=await sb.storage.from('Fleet-Photos').upload(path,file,{upsert:false,contentType:file.type});
   if(error) throw error;
-  const {data:urlData}=sb.storage.from('fleet-photos').getPublicUrl(path);
+  const {data:urlData}=sb.storage.from('Fleet-Photos').getPublicUrl(path);
   return {url:urlData.publicUrl, path};
 }
 
