@@ -193,6 +193,13 @@ textarea{resize:vertical}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ APP -->
+<div id="loading-wrap" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0C447C 0%,#185FA5 60%,#2d7dd2 100%)">
+  <div style="text-align:center;color:#fff">
+    <div style="font-size:48px;margin-bottom:16px">🚛</div>
+    <div style="font-size:18px;font-weight:600;margin-bottom:8px">AWRS Fleet</div>
+    <div style="font-size:14px;opacity:.7">Loading…</div>
+  </div>
+</div>
 <div id="app-wrap" style="display:none">
 
 <!-- HOME -->
@@ -508,11 +515,12 @@ async function doForgotPassword(){
 
 async function doSignOut(){
   await sb.auth.signOut();
-  location.reload();
+  window.location.href = window.location.href.split('?')[0];
 }
 
 // ─── AUTH STATE ───────────────────────────────────────────────────────────────
 sb.auth.onAuthStateChange(async(event,session)=>{
+  document.getElementById('loading-wrap').style.display='none';
   if(session?.user){
     currentUser=session.user;
     const meta=currentUser.user_metadata||{};
@@ -527,6 +535,7 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   } else {
     document.getElementById('auth-wrap').style.display='flex';
     document.getElementById('app-wrap').style.display='none';
+    document.getElementById('loading-wrap').style.display='none';
   }
 });
 
