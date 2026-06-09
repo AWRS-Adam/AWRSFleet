@@ -149,8 +149,8 @@ textarea{resize:vertical}
       <h1>AWRS Fleet</h1>
     </div>
     <div class="auth-tabs">
-      <div class="auth-tab active" onclick="switchAuthTab('login')">Sign In</div>
-      <div class="auth-tab" onclick="switchAuthTab('register')">Create Account</div>
+      <div class="auth-tab active" id="tab-login">Sign In</div>
+      <div class="auth-tab" id="tab-register">Create Account</div>
     </div>
 
     <!-- LOGIN -->
@@ -158,8 +158,8 @@ textarea{resize:vertical}
       <div class="auth-error" id="login-error"></div>
       <div class="form-row"><label class="fl">Email</label><input type="email" id="login-email" placeholder="you@company.com" autocomplete="email"></div>
       <div class="form-row"><label class="fl">Password</label><input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"></div>
-      <button class="btn primary full" id="login-btn" onclick="doLogin()">Sign In</button>
-      <div style="text-align:center;margin-top:12px"><button class="btn sm" style="border:none;background:none;color:var(--blue);font-size:13px" onclick="doForgotPassword()">Forgot password?</button></div>
+      <button class="btn primary full" id="login-btn">Sign In</button>
+      <div style="text-align:center;margin-top:12px"><button class="btn sm" id="forgot-btn" style="border:none;background:none;color:var(--blue);font-size:13px">Forgot password?</button></div>
     </div>
 
     <!-- REGISTER -->
@@ -186,7 +186,7 @@ textarea{resize:vertical}
           <option value="IN1">IN1</option>
         </select>
       </div>
-      <button class="btn primary full" id="register-btn" type="button" onclick="doRegister()">Create Account</button>
+      <button class="btn primary full" id="register-btn" type="button">Create Account</button>
     </div>
   </div>
 </div>
@@ -1029,6 +1029,19 @@ function showScreen(id){
   window.scrollTo(0,0);
   if(id==='screen-admin')renderAdmin();
 }
+
+// ─── BIND AUTH EVENTS (safe, after DOM ready) ─────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('tab-login').addEventListener('click', () => switchAuthTab('login'));
+  document.getElementById('tab-register').addEventListener('click', () => switchAuthTab('register'));
+  document.getElementById('login-btn').addEventListener('click', doLogin);
+  document.getElementById('register-btn').addEventListener('click', doRegister);
+  document.getElementById('forgot-btn').addEventListener('click', doForgotPassword);
+
+  // Allow Enter key to submit login
+  document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+  document.getElementById('reg-password').addEventListener('keydown', e => { if(e.key==='Enter') doRegister(); });
+});
 </script>
 </body>
 </html>
