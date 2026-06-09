@@ -45,6 +45,10 @@ textarea{resize:vertical}
 .radio-group input[type=radio]{display:none}
 .radio-group label:has(input[value=ok]:checked){border-color:var(--green-mid);background:var(--green-light)}
 .radio-group label:has(input[value=defect]:checked){border-color:var(--red-mid);background:var(--red-light)}
+.radio-group label:has(input[value=na]:checked){border-color:var(--border-med);background:var(--bg);opacity:.6}
+.radio-sel-ok{border-color:var(--green-mid)!important;background:var(--green-light)!important}
+.radio-sel-defect{border-color:var(--red-mid)!important;background:var(--red-light)!important}
+.radio-sel-na{border-color:var(--border-med)!important;background:var(--bg)!important;opacity:.7}
 .defect-note{width:100%;margin-top:6px;padding:6px 10px;border:1px solid var(--red-mid);border-radius:var(--radius-sm);background:var(--red-light);color:var(--text);font-size:13px;font-family:inherit;display:none}
 .photo-row{margin-top:8px;display:none;align-items:center;gap:8px;flex-wrap:wrap}
 .photo-row.visible{display:flex}
@@ -284,6 +288,8 @@ async function submitInspection() {
       }
     });
   }
+  const totalItems = Object.values(ITEMS[currentUnit.type]).flat().length;
+  if (unchecked.length === totalItems) { alert('Please complete at least some of the inspection before submitting.'); return; }
   if (unchecked.length > 0 && !confirm(unchecked.length + ' item(s) not checked. Submit anyway?')) return;
 
   // Show summary IMMEDIATELY - no waiting

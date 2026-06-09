@@ -74,6 +74,10 @@ textarea{resize:vertical}
 .radio-group input[type=radio]{display:none}
 .radio-group label:has(input[value=ok]:checked){border-color:var(--green-mid);background:var(--green-light)}
 .radio-group label:has(input[value=defect]:checked){border-color:var(--red-mid);background:var(--red-light)}
+.radio-group label:has(input[value=na]:checked){border-color:var(--border-med);background:var(--bg);opacity:.6}
+.radio-sel-ok{border-color:var(--green-mid)!important;background:var(--green-light)!important}
+.radio-sel-defect{border-color:var(--red-mid)!important;background:var(--red-light)!important}
+.radio-sel-na{border-color:var(--border-med)!important;background:var(--bg)!important;opacity:.7}
 .defect-note{width:100%;margin-top:6px;padding:6px 10px;border:1px solid var(--red-mid);border-radius:var(--radius-sm);background:var(--red-light);color:var(--text);font-size:13px;font-family:inherit;display:none}
 .photo-row{margin-top:8px;display:none}
 .photo-row.visible{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -618,8 +622,11 @@ async function initApp(){
 }
 
 function getVisibleFleet(){
-  if(isAdmin) return fleet;
-  return fleet.filter(u=>u.location===userLocation);
+  // Deduplicate by id
+  const seen=new Set();
+  const unique=fleet.filter(u=>{if(seen.has(u.id))return false;seen.add(u.id);return true;});
+  if(isAdmin) return unique;
+  return unique.filter(u=>u.location===userLocation);
 }
 
 // ─── SUPABASE SAVE HELPERS ────────────────────────────────────────────────────
@@ -1035,6 +1042,16 @@ function startInspection(i){
       n.style.display=this.value==='defect'?'block':'none';
       if(this.value!=='defect'){n.value='';}
       if(pr){pr.classList.toggle('visible',this.value==='defect');}
+      // Update label styling for all browsers (fallback for no :has support)
+      document.querySelectorAll(`label:has(input[name="${this.name}"])`).forEach(lbl=>{
+        lbl.classList.remove('radio-sel-ok','radio-sel-defect','radio-sel-na');
+      });
+      const checkedLabel=this.closest('label');
+      if(checkedLabel){
+        if(this.value==='ok') checkedLabel.classList.add('radio-sel-ok');
+        else if(this.value==='defect') checkedLabel.classList.add('radio-sel-defect');
+        else if(this.value==='na') checkedLabel.classList.add('radio-sel-na');
+      }
     });
   });
   showScreen('screen-inspect');
@@ -1060,7 +1077,9 @@ async function submitInspection(){
       }
     });
   }
-  if(unchecked.length>0&&!confirm(`${unchecked.length} item(s) not checked. Submit anyway?`))return;
+  const totalItems=Object.values(secs).flat().length;
+  if(unchecked.length===totalItems){alert('Please complete at least some of the inspection before submitting.');return;}
+  if(unchecked.length>0&&!confirm(unchecked.length+' item(s) not checked. Submit anyway?'))return;
   const btn=document.getElementById('submit-insp-btn');
   btn.innerHTML='<span class="spinner"></span> Submitting…';btn.disabled=true;
   const odoVal=parseInt(document.getElementById('insp-odo').value)||0;
