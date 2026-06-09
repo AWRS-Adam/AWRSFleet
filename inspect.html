@@ -201,7 +201,7 @@ function buildForm(unit) {
       const pr = document.getElementById('photo-row-' + this.name);
       note.style.display = this.value === 'defect' ? 'block' : 'none';
       if (this.value !== 'defect') note.value = '';
-      if (pr) pr.classList.toggle('visible', this.value === 'defect' || this.value === 'ok');
+      if (pr) pr.classList.toggle('visible', this.value === 'defect');
     });
   });
 

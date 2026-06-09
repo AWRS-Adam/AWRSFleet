@@ -1031,8 +1031,8 @@ function startInspection(i){
       const n=document.getElementById('note-'+this.name);
       const pr=document.getElementById('photo-row-'+this.name);
       n.style.display=this.value==='defect'?'block':'none';
-      if(this.value!=='defect')n.value='';
-      if(pr){pr.classList.toggle('visible',this.value==='defect'||this.value==='ok');}
+      if(this.value!=='defect'){n.value='';}
+      if(pr){pr.classList.toggle('visible',this.value==='defect');}
     });
   });
   showScreen('screen-inspect');
