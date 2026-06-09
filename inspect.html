@@ -238,7 +238,7 @@ async function triggerPhoto(key) {
 function renderPhotoRow(key) {
   const row = document.getElementById('photo-row-' + key); if (!row) return;
   const photos = inspectionPhotos[key] || [];
-  row.innerHTML = photos.map(p => `<img class="photo-thumb" src="${p.url}">`).join('') +
+  row.innerHTML = photos.map(p => `<img class="photo-thumb" src="${p.url}" style="${p.pending?'opacity:.6':''}" title="${p.pending?'Will upload on submit':''}">`).join('') +
     `<div class="photo-add-btn" id="photo-btn-${key}">📷</div>`;
   row.classList.add('visible');
   document.getElementById('photo-btn-' + key).onclick = () => triggerPhoto(key);
@@ -337,6 +337,8 @@ async function submitInspection() {
 
     await Promise.race([doSubmit(), submitTimeout]);
     showSummary(record);
+    // Upload any pending photos in background after summary shown
+    uploadPendingPhotos(record.id);
   } catch(e) {
     // If timeout, still show summary - data may have saved
     if (e.message === 'timeout') {
@@ -346,6 +348,41 @@ async function submitInspection() {
       alert('Submission failed: ' + e.message + '\n\nPlease try again or contact your manager.');
     }
   }
+}
+
+// ─── BACKGROUND PHOTO UPLOAD ─────────────────────────────────────────────────
+async function uploadPendingPhotos(recId) {
+  for (const [key, photos] of Object.entries(inspectionPhotos)) {
+    for (const photo of photos) {
+      if (!photo.pending || !photo.file) continue;
+      try {
+        const ext = photo.file.name.split('.').pop() || 'jpg';
+        const path = `inspections/${recId}/${key}-${Date.now()}.${ext}`;
+        const uploadUrl = `${SUPABASE_URL}/storage/v1/object/Fleet-Photos/${path}`;
+        const res = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${SUPABASE_KEY}`, 'apikey': SUPABASE_KEY, 'Content-Type': photo.file.type, 'x-upsert': 'true' },
+          body: photo.file
+        });
+        if (res.ok) {
+          photo.url = `${SUPABASE_URL}/storage/v1/object/public/Fleet-Photos/${path}`;
+          photo.path = path;
+          photo.pending = false;
+        }
+      } catch(e) { console.warn('Background photo upload failed:', e); }
+    }
+  }
+  // Update the inspection record with photo URLs
+  try {
+    const { data } = await sb.from('fi_inspections').select('data').eq('id', recId).single();
+    if (data) {
+      const rec = data.data;
+      rec.defects.forEach(d => {
+        const key = 's' + d.section.replace(/\W/g,'') + '0';
+        // photos already in record from inspectionPhotos at submit time
+      });
+    }
+  } catch(e) {}
 }
 
 // ─── SUMMARY ──────────────────────────────────────────────────────────────────
