@@ -166,19 +166,27 @@ textarea{resize:vertical}
     <div id="auth-register" style="display:none">
       <div class="auth-error" id="register-error"></div>
       <div class="auth-success" id="register-success"></div>
-      <div class="form-row"><label class="fl">Full Name</label><input type="text" id="reg-name" placeholder="Jane Smith"></div>
       <div class="form-row"><label class="fl">Email</label><input type="email" id="reg-email" placeholder="you@company.com" autocomplete="email"></div>
-      <div class="form-row"><label class="fl">Password</label><input type="password" id="reg-password" placeholder="Min 6 characters" autocomplete="new-password"></div>
+      <div class="form-row"><label class="fl">Password <span style="font-size:11px;color:var(--text-hint)">(min 6 characters)</span></label><input type="password" id="reg-password" placeholder="••••••••" autocomplete="new-password"></div>
       <div class="form-row">
         <label class="fl">Your Location / Branch</label>
-        <select id="reg-location">
+        <select id="reg-location" size="1">
           <option value="">— Select your location —</option>
-          <option>NY1</option><option>WCC</option><option>CT1</option><option>FL1</option>
-          <option>GA1</option><option>MD1</option><option>NJ1</option><option>OpCo</option>
-          <option>MO1</option><option>MO2</option><option>IL1</option><option>IN1</option>
+          <option value="NY1">NY1</option>
+          <option value="WCC">WCC</option>
+          <option value="CT1">CT1</option>
+          <option value="FL1">FL1</option>
+          <option value="GA1">GA1</option>
+          <option value="MD1">MD1</option>
+          <option value="NJ1">NJ1</option>
+          <option value="OpCo">OpCo</option>
+          <option value="MO1">MO1</option>
+          <option value="MO2">MO2</option>
+          <option value="IL1">IL1</option>
+          <option value="IN1">IN1</option>
         </select>
       </div>
-      <button class="btn primary full" id="register-btn" onclick="doRegister()">Create Account</button>
+      <button class="btn primary full" id="register-btn" type="button" onclick="doRegister()">Create Account</button>
     </div>
   </div>
 </div>
@@ -340,6 +348,15 @@ textarea{resize:vertical}
     <div id="tab-history" style="display:none"><div id="admin-history"></div><div id="no-history" class="empty-state" style="display:none">No inspections yet.</div></div>
     <div id="tab-users" style="display:none"><div id="admin-users"></div></div>
     <div id="tab-settings" style="display:none">
+      <div class="card" style="border-left:3px solid var(--purple)">
+        <p style="font-size:14px;font-weight:500;margin-bottom:6px">👑 Admin Accounts</p>
+        <p style="font-size:13px;color:var(--text-sec);margin-bottom:8px">Admin emails are set directly in the app code. Current admins:</p>
+        <div id="admin-email-list" style="font-size:13px;margin-bottom:10px"></div>
+        <p style="font-size:12px;color:var(--text-hint)">To add an admin, edit the <code>ADMIN_EMAILS</code> array in the HTML file and re-upload to GitHub.</p>
+        <hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
+        <p style="font-size:14px;font-weight:500;margin-bottom:4px">⚙️ Supabase Tips</p>
+        <p style="font-size:13px;color:var(--text-sec)">To let users sign in immediately without email confirmation, go to your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/providers" target="_blank" style="color:var(--blue)">Supabase Auth settings</a> and disable <strong>"Confirm email"</strong>.</p>
+      </div>
       <div class="card" style="border-left:3px solid var(--blue)">
         <p style="font-size:14px;font-weight:500;margin-bottom:4px">➕ Add Fleet Unit</p>
         <button class="btn primary sm" onclick="showScreen('screen-add')">+ Add Unit</button>
@@ -389,7 +406,12 @@ textarea{resize:vertical}
 const BASE_URL = "";
 const SUPABASE_URL = "https://tlqxcpybsrolgsglwehr.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRscXhjcHlic3JvbGdzZ2x3ZWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjAyMTMsImV4cCI6MjA5NjU5NjIxM30.C6RNumDgJz75IcijCDtVk94KbGKCcibcMduNAJPZa_s";
-const ADMIN_EMAIL = "admin@awrs.com"; // ← Change to your admin email
+// ─── ADMIN EMAILS ─────────────────────────────────────────────────────────────
+// Add any email addresses here that should have full admin access (all locations)
+const ADMIN_EMAILS = [
+  "admin@awrs.com",       // ← replace with your admin email(s)
+  // "manager@awrs.com",  // add more admins here
+];
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -447,7 +469,6 @@ async function doLogin(){
 }
 
 async function doRegister(){
-  const name=document.getElementById('reg-name').value.trim();
   const email=document.getElementById('reg-email').value.trim();
   const pass=document.getElementById('reg-password').value;
   const loc=document.getElementById('reg-location').value;
@@ -455,13 +476,18 @@ async function doRegister(){
   const err=document.getElementById('register-error');
   const suc=document.getElementById('register-success');
   err.style.display='none';suc.style.display='none';
-  if(!name||!email||!pass||!loc){err.textContent='Please fill in all fields.';err.style.display='block';return;}
+  if(!email){err.textContent='Please enter your email.';err.style.display='block';return;}
+  if(!pass){err.textContent='Please enter a password.';err.style.display='block';return;}
   if(pass.length<6){err.textContent='Password must be at least 6 characters.';err.style.display='block';return;}
+  if(!loc){err.textContent='Please select your location.';err.style.display='block';return;}
   btn.innerHTML='<span class="spinner"></span> Creating account…';btn.disabled=true;
-  const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{full_name:name,location:loc,role:'gm'}}});
+  const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{location:loc,role:'gm'}}});
   btn.innerHTML='Create Account';btn.disabled=false;
   if(error){err.textContent=error.message;err.style.display='block';return;}
-  suc.textContent='Account created! Check your email to confirm, then sign in.';suc.style.display='block';
+  suc.textContent='✓ Account created! You can now sign in.';suc.style.display='block';
+  // Auto-switch to login and prefill email
+  document.getElementById('login-email').value=email;
+  setTimeout(()=>switchAuthTab('login'),1800);
 }
 
 async function doForgotPassword(){
@@ -482,8 +508,8 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   if(session?.user){
     currentUser=session.user;
     const meta=currentUser.user_metadata||{};
-    userProfile={name:meta.full_name||currentUser.email,email:currentUser.email,location:meta.location||'',role:meta.role||'gm'};
-    isAdmin=(currentUser.email===ADMIN_EMAIL);
+    userProfile={name:meta.full_name||currentUser.email.split('@')[0],email:currentUser.email,location:meta.location||'',role:meta.role||'gm'};
+    isAdmin=ADMIN_EMAILS.includes(currentUser.email);
     userLocation=isAdmin?null:userProfile.location;
     document.getElementById('auth-wrap').style.display='none';
     document.getElementById('app-wrap').style.display='block';
@@ -743,7 +769,7 @@ function switchTab(tab){
   if(tab==='maintenance')renderAdminMaint();
   if(tab==='history')renderAdminHistory();
   if(tab==='users')renderAdminUsers();
-  if(tab==='settings'){renderIntervalSettings();renderEscalationSettings();}
+  if(tab==='settings'){renderIntervalSettings();renderEscalationSettings();renderAdminEmailList();}
 }
 function renderAdmin(){
   const vf=getVisibleFleet();
@@ -817,8 +843,13 @@ async function renderAdminUsers(){
       c.innerHTML=`<div class="card"><p style="font-size:14px;font-weight:500;margin-bottom:12px">Registered Users</p><p style="font-size:13px;color:var(--text-sec)">User listing requires the Supabase service role key (not available client-side for security). To manage users, go to your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/users" target="_blank" style="color:var(--blue)">Supabase Auth dashboard →</a></p><div style="margin-top:12px"><div class="user-card"><div><div style="font-weight:500">${userProfile.name}</div><div style="font-size:13px;color:var(--text-sec)">${userProfile.email}</div><div style="font-size:12px;color:var(--text-hint);margin-top:2px">Location: ${userProfile.location||'—'}</div></div><span class="role-badge ${isAdmin?'role-admin':'role-gm'}">${isAdmin?'Admin':'GM'}</span></div></div></div>`;
       return;
     }
-    c.innerHTML=`<div class="card"><p style="font-size:14px;font-weight:500;margin-bottom:12px">Registered Users (${data.users.length})</p>${data.users.map(u=>{const meta=u.user_metadata||{};return`<div class="user-card"><div><div style="font-weight:500">${meta.full_name||u.email}</div><div style="font-size:13px;color:var(--text-sec)">${u.email}</div><div style="font-size:12px;color:var(--text-hint);margin-top:2px">Location: ${meta.location||'—'} · Joined: ${new Date(u.created_at).toLocaleDateString()}</div></div><span class="role-badge ${u.email===ADMIN_EMAIL?'role-admin':'role-gm'}">${u.email===ADMIN_EMAIL?'Admin':'GM'}</span></div>`;}).join('')}</div>`;
+    c.innerHTML=`<div class="card"><p style="font-size:14px;font-weight:500;margin-bottom:12px">Registered Users (${data.users.length})</p>${data.users.map(u=>{const meta=u.user_metadata||{};return`<div class="user-card"><div><div style="font-weight:500">${meta.full_name||u.email}</div><div style="font-size:13px;color:var(--text-sec)">${u.email}</div><div style="font-size:12px;color:var(--text-hint);margin-top:2px">Location: ${meta.location||'—'} · Joined: ${new Date(u.created_at).toLocaleDateString()}</div></div><span class="role-badge ${ADMIN_EMAILS.includes(u.email)?'role-admin':'role-gm'}">${ADMIN_EMAILS.includes(u.email)?'Admin':'GM'}</span></div>`;}).join('')}</div>`;
   }catch(e){c.innerHTML=`<div class="card"><p style="font-size:13px;color:var(--text-sec)">View and manage users in your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/users" target="_blank" style="color:var(--blue)">Supabase Auth dashboard →</a></p></div>`;}
+}
+function renderAdminEmailList(){
+  const el=document.getElementById('admin-email-list');
+  if(!el) return;
+  el.innerHTML=ADMIN_EMAILS.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0"><span class="role-badge role-admin">Admin</span> <span>${e}</span></div>`).join('');
 }
 function renderIntervalSettings(){
   const c=document.getElementById('interval-settings');
