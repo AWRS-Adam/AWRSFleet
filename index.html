@@ -410,9 +410,8 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // ─── ADMIN EMAILS ─────────────────────────────────────────────────────────────
 // Add any email addresses here that should have full admin access (all locations)
 const ADMIN_EMAILS = [
-  "adamlipps@alloywheel.com",
-  "georgediaz@alloywheel.com",
-  "mikeriley@alloywheel.com",
+  "admin@awrs.com",       // ← replace with your admin email(s)
+  // "manager@awrs.com",  // add more admins here
 ];
 let sb;
 try {
@@ -899,8 +898,8 @@ function renderFleet(){
   list.innerHTML=filtered.map(u=>{
     const i=vf.indexOf(u);
     const last=inspections.filter(x=>x.unitId===u.id).sort((a,b)=>b.ts-a.ts)[0];
-    const badge=last?(last.defects&&last.defects.length?`<span class="badge defect">⚠ ${last.defects.length} defect${last.defects.length>1?'s':''}</span>`:`<span class="badge ok">✓ Passed</span>`):`<span class="badge pending">Not inspected</span>`;
     const openD=defectLog.filter(d=>d.unitId===u.id&&!d.resolved);
+    const badge=last?(openD.length?`<span class="badge defect" style="cursor:pointer" onclick="showUnitDefects('${u.id}')">⚠ ${openD.length} open defect${openD.length>1?'s':''}</span>`:(last.defects&&last.defects.length?`<span class="badge defect" style="cursor:pointer;opacity:.6" onclick="showUnitDefects('${u.id}')">⚠ ${last.defects.length} defect${last.defects.length>1?'s':''} (resolved)</span>`:`<span class="badge ok">✓ Passed</span>`)):`<span class="badge pending">Not inspected</span>`;
     const maxEsc=openD.reduce((m,d)=>Math.max(m,escalationLevel(d)),-1);
     const escWarn=maxEsc>=0?`<span class="esc-pill ${ESCALATION_LEVELS[maxEsc].cls}">${ESCALATION_LEVELS[maxEsc].label}</span>`:'';
     const ms=unitMaintSummary(u.id,u.type);
@@ -908,6 +907,51 @@ function renderFleet(){
     const odo=getOdo(u.id);
     return`<div class="fleet-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:16px;font-weight:600">${u.id}</span><span class="tag">${typeName(u.type)}</span>${u.location?`<span class="loc-tag">${u.location}</span>`:''}${escWarn}${maintWarn}</div><div style="font-size:13px;color:var(--text-sec);margin-top:2px">${[u.make,u.year].filter(Boolean).join(' ')||'—'} ${badge}${odo.miles?` <span style="font-size:11px;color:var(--text-hint)">· ${odo.miles.toLocaleString()} mi</span>`:''}</div>${u.vin&&u.vin!='None'?`<div style="font-size:11px;color:var(--text-hint);margin-top:1px">VIN: ${u.vin}</div>`:''}</div><div class="fleet-actions"><button class="btn sm primary" onclick="startInspection(${i})">Inspect</button><button class="btn sm ${ms.due>0?'warning':''}" onclick="openMaintScreen(${i})">🔧 Maint</button><button class="btn sm" onclick="showQR(${i})">QR</button></div></div>`;
   }).join('');
+}
+
+function showUnitDefects(unitId){
+  const openD=defectLog.filter(d=>d.unitId===unitId&&!d.resolved);
+  const resolvedD=defectLog.filter(d=>d.unitId===unitId&&d.resolved).slice(0,5);
+  const all=[...openD,...resolvedD];
+  if(!all.length){alert('No defects on record for '+unitId);return;}
+  const u=fleet.find(f=>f.id===unitId);
+  document.getElementById('modal-title').textContent='Defects — '+unitId+(u&&u.location?' ('+u.location+')':'');
+  document.getElementById('modal-body').innerHTML=`
+    ${openD.length?`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin-bottom:8px">Open (${openD.length})</p>`:''}
+    ${openD.map(d=>{
+      const days=Math.floor((Date.now()-d.ts)/86400000);
+      const lv=escalationLevel(d);
+      const pill=lv>=0?`<span class="esc-pill ${ESCALATION_LEVELS[lv].cls}">${ESCALATION_LEVELS[lv].label}</span>`:'';
+      const photoHtml=d.photos&&d.photos.length?`<div style="display:flex;gap:4px;margin-top:4px">${d.photos.map(p=>`<img src="${p.url}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;cursor:pointer" onclick="openPhotoModal('${p.url}')">`).join('')}</div>`:'';
+      return`<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="font-size:14px;font-weight:600">${d.item}</div>
+          <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">${pill}<span style="font-size:12px;color:var(--text-hint)">${days}d</span></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:2px">${d.section}${d.note?' · '+d.note:''}</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:2px">Reported by ${d.tech} · ${new Date(d.ts).toLocaleDateString()}</div>
+        ${photoHtml}
+        <button class="btn sm success" style="margin-top:8px" onclick="resolveDefectFromCard('${d.logId}','${unitId}')">✓ Mark Resolved</button>
+      </div>`;
+    }).join('')}
+    ${resolvedD.length?`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin:12px 0 8px">Recently Resolved</p>${resolvedD.map(d=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);opacity:.7"><div style="font-size:13px;font-weight:500">${d.item} <span class="badge resolved" style="font-size:11px">✓ Resolved</span></div><div style="font-size:12px;color:var(--text-sec)">${d.section}</div><div style="font-size:11px;color:var(--text-hint)">Resolved by ${d.resolvedBy||'—'} · ${d.resolvedNote||''}</div></div>`).join('')}`:''}
+  `;
+  // Hide the log maint confirm button, show just a close button
+  document.getElementById('modal-overlay').style.display='flex';
+  document.querySelector('#modal-overlay .modal div:last-child').innerHTML=`<button class="btn sm" onclick="closeModal()">Close</button>`;
+}
+
+function resolveDefectFromCard(logId, unitId){
+  const note=prompt('Resolution note (optional):','')||'';
+  const by=prompt('Your name:','')||userProfile?.name||'Unknown';
+  const e=defectLog.find(d=>d.logId===logId);
+  if(!e)return;
+  e.resolved=true;e.resolvedBy=by;e.resolvedTs=Date.now();e.resolvedNote=note;
+  sbSaveDefectLog();
+  closeModal();
+  renderFleet();updateOverdueBadge();
+  // Reopen the modal with updated data
+  setTimeout(()=>showUnitDefects(unitId),100);
 }
 
 function addUnit(){
@@ -1020,8 +1064,8 @@ function captureGPS(){
 // ─── QR ───────────────────────────────────────────────────────────────────────
 function showQR(i){
   const vf=getVisibleFleet();currentQRUnit=i;const u=vf[i];
-  const base=BASE_URL||window.location.href.split('?')[0];
-  const url=base+'?unit='+encodeURIComponent(u.id);
+  const base=(BASE_URL||window.location.href.split('?')[0]).replace('index.html','').replace(/\/$/,'');
+  const url=base+'/inspect.html?unit='+encodeURIComponent(u.id);
   document.getElementById('qr-title').textContent='QR — '+u.id;
   document.getElementById('qr-url').textContent=url;
   new QRious({element:document.getElementById('qr-canvas'),value:url,size:220,background:'#ffffff',foreground:'#1a1a18'});
