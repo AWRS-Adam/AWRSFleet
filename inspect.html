@@ -300,45 +300,51 @@ async function submitInspection() {
   };
 
   try {
-    // Save inspection
-    const { error: inspErr } = await sb.from('fi_inspections').upsert({ id: record.id, data: record }, { onConflict: 'id' });
-    if (inspErr) throw inspErr;
+    // Set a 10 second timeout on submission
+    const submitTimeout = new Promise((_,reject) => setTimeout(() => reject(new Error('timeout')), 10000));
+    
+    const doSubmit = async () => {
+      const { error: inspErr } = await sb.from('fi_inspections').upsert({ id: record.id, data: record }, { onConflict: 'id' });
+      if (inspErr) throw inspErr;
+      if (defects.length) {
+        const defectRows = defects.map((d, di) => ({
+          log_id: record.id + '-' + di,
+          data: {
+            logId: record.id + '-' + di,
+            inspectionId: record.id,
+            unitId: record.unitId,
+            unitLocation: record.unitLocation || '',
+            unitType: record.unitType,
+            tech: record.tech,
+            ts: record.ts,
+            section: d.section,
+            item: d.item,
+            note: d.note || '',
+            photos: d.photos || [],
+            resolved: false,
+            resolvedBy: '',
+            resolvedTs: null,
+            resolvedNote: ''
+          }
+        }));
+        const { error: defErr } = await sb.from('fi_defect_log').upsert(defectRows, { onConflict: 'log_id' });
+        if (defErr) throw defErr;
+      }
+      if (odoVal > 0) {
+        await sb.from('fi_odometer').upsert({ unit_id: currentUnit.id, data: { miles: odoVal, ts: Date.now(), source: 'inspection' } }, { onConflict: 'unit_id' });
+      }
+    };
 
-    // Save defects to defect log
-    if (defects.length) {
-      const defectRows = defects.map((d, di) => ({
-        log_id: record.id + '-' + di,
-        data: {
-          logId: record.id + '-' + di,
-          inspectionId: record.id,
-          unitId: record.unitId,
-          unitLocation: record.unitLocation || '',
-          unitType: record.unitType,
-          tech: record.tech,
-          ts: record.ts,
-          section: d.section,
-          item: d.item,
-          note: d.note || '',
-          photos: d.photos || [],
-          resolved: false,
-          resolvedBy: '',
-          resolvedTs: null,
-          resolvedNote: ''
-        }
-      }));
-      const { error: defErr } = await sb.from('fi_defect_log').upsert(defectRows, { onConflict: 'log_id' });
-      if (defErr) throw defErr;
-    }
-
-    // Save odometer
-    if (odoVal > 0) {
-      await sb.from('fi_odometer').upsert({ unit_id: currentUnit.id, data: { miles: odoVal, ts: Date.now(), source: 'inspection' } }, { onConflict: 'unit_id' });
-    }
-
+    await Promise.race([doSubmit(), submitTimeout]);
     showSummary(record);
   } catch(e) {
-    btn.innerHTML = 'Submit Inspection'; btn.disabled = false;
-    alert('Submission failed: ' + e.message + '\n\nPlease try again or contact your manager.');
+    // If timeout, still show summary - data may have saved
+    if (e.message === 'timeout') {
+      showSummary(record);
+    } else {
+      btn.innerHTML = 'Submit Inspection'; btn.disabled = false;
+      alert('Submission failed: ' + e.message + '\n\nPlease try again or contact your manager.');
+    }
   }
 }
 

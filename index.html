@@ -579,6 +579,8 @@ function ss(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 async function initApp(){
   showSyncStatus('⟳ Syncing…','loading');
   fleet=[...PRELOADED_FLEET];
+  // Render immediately with preloaded data so screen isn't blank
+  renderFleet();updateOverdueBadge();
   try{
     const [settingsRes,inspsRes,defectsRes,maintRes,odoRes]=await Promise.all([
       sb.from('fi_settings').select('key,value'),
@@ -1065,7 +1067,11 @@ async function submitInspection(){
   if(odoVal>0)setOdo(u.id,odoVal,'inspection');
   const record={id:currentInspectionId,unitId:u.id,unitType:u.type,unitLocation:u.location,tech,odo:odoVal,notes:document.getElementById('insp-notes').value,ts:Date.now(),defects,items:allItems,gps:gpsData||null,submittedBy:currentUser?.email||''};
   inspections.push(record);syncDefectLog();
-  await sbSaveInspection(record);await sbSaveDefectLog();
+  // Submit with timeout - show summary regardless after 8s
+  try{
+    const t=new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),8000));
+    await Promise.race([Promise.all([sbSaveInspection(record),sbSaveDefectLog()]),t]);
+  }catch(e){console.warn('Submit timeout/error:',e);}
   btn.innerHTML='Submit Inspection';btn.disabled=false;
   renderFleet();updateOverdueBadge();
   renderSummary(record,u);showScreen('screen-summary');
