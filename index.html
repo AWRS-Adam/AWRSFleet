@@ -85,6 +85,7 @@ textarea{resize:vertical}
 .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
 @media(max-width:520px){.metrics-grid{grid-template-columns:repeat(2,1fr)}}
 .metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center}
+.metric-click{cursor:pointer;transition:box-shadow .15s,transform .1s}.metric-click:hover{box-shadow:0 4px 12px rgba(0,0,0,.15);transform:translateY(-2px)}
 .metric-val{font-size:22px;font-weight:700}.metric-label{font-size:11px;color:var(--text-sec);margin-top:2px}
 .fleet-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);display:flex;align-items:center;justify-content:space-between;gap:10px}
 .fleet-actions{display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0}
@@ -775,19 +776,17 @@ function renderAdmin(){
   const vf=getVisibleFleet();
   const open=openDefects().length,esc=openDefects().filter(d=>escalationLevel(d)>=0).length,due=allMaintDue();
   const myInsps=inspections.filter(i=>isAdmin||i.unitLocation===userLocation).length;
-  const metricStyle='cursor:pointer;transition:box-shadow .15s,transform .1s';
-  const metricHover='onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.15)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='';this.style.transform=''"';
   document.getElementById('admin-metrics').innerHTML=`
-    <div class="metric" style="${metricStyle}" ${metricHover} onclick="showScreen('screen-home')" title="Go to fleet list">
+    <div class="metric metric-click" onclick="showScreen('screen-home')">
       <div class="metric-val">${vf.length}</div><div class="metric-label">Fleet units</div>
     </div>
-    <div class="metric" style="${metricStyle}" ${metricHover} onclick="switchTab('history')" title="View inspection history">
+    <div class="metric metric-click" onclick="switchTab('history')">
       <div class="metric-val">${myInsps}</div><div class="metric-label">Inspections</div>
     </div>
-    <div class="metric" style="${metricStyle}" ${metricHover} onclick="switchTab('defects')" title="View open defects">
+    <div class="metric metric-click" onclick="switchTab('defects')">
       <div class="metric-val" style="color:var(--red)">${open}</div><div class="metric-label">Open defects</div>
     </div>
-    <div class="metric" style="${metricStyle}" ${metricHover} onclick="switchTab('maintenance')" title="View maintenance due">
+    <div class="metric metric-click" onclick="switchTab('maintenance')">
       <div class="metric-val" style="color:var(--amber)">${due}</div><div class="metric-label">Maint due</div>
     </div>`;
   updateOverdueBadge();switchTab(activeTab);
@@ -1030,18 +1029,19 @@ function showScreen(id){
   if(id==='screen-admin')renderAdmin();
 }
 
-// ─── BIND AUTH EVENTS (safe, after DOM ready) ─────────────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('tab-login').addEventListener('click', () => switchAuthTab('login'));
-  document.getElementById('tab-register').addEventListener('click', () => switchAuthTab('register'));
-  document.getElementById('login-btn').addEventListener('click', doLogin);
-  document.getElementById('register-btn').addEventListener('click', doRegister);
-  document.getElementById('forgot-btn').addEventListener('click', doForgotPassword);
-
-  // Allow Enter key to submit login
-  document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
-  document.getElementById('reg-password').addEventListener('keydown', e => { if(e.key==='Enter') doRegister(); });
-});
+// ─── BIND AUTH EVENTS ────────────────────────────────────────────────────────
+function bindAuthEvents() {
+  try {
+    document.getElementById('tab-login').onclick = () => switchAuthTab('login');
+    document.getElementById('tab-register').onclick = () => switchAuthTab('register');
+    document.getElementById('login-btn').onclick = doLogin;
+    document.getElementById('register-btn').onclick = doRegister;
+    document.getElementById('forgot-btn').onclick = doForgotPassword;
+    document.getElementById('login-password').onkeydown = e => { if(e.key==='Enter') doLogin(); };
+    document.getElementById('reg-password').onkeydown = e => { if(e.key==='Enter') doRegister(); };
+  } catch(e) { console.error('bindAuthEvents error:', e); }
+}
+bindAuthEvents();
 </script>
 </body>
 </html>
