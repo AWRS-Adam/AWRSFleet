@@ -594,7 +594,7 @@ async function initApp(){
       if(kv['fleet_added']){kv['fleet_added'].forEach(u=>{if(!fleet.find(p=>p.id===u.id)) fleet.push(u);});}
     }
     if(inspsRes.data) inspections=inspsRes.data.map(r=>r.data);
-    if(defectsRes.data) defectLog=defectsRes.data.map(r=>r.data);
+    if(defectsRes.data) defectLog=defectsRes.data.map(r=>r.data).filter(d=>d&&d.logId);
     if(maintRes.data){maintLog={};maintRes.data.forEach(r=>{if(!maintLog[r.unit_id])maintLog[r.unit_id]={};maintLog[r.unit_id][r.item_id]=r.data;});}
     if(odoRes.data){odometerData={};odoRes.data.forEach(r=>{odometerData[r.unit_id]=r.data;});}
     showSyncStatus('✓ Synced','ok');
@@ -834,7 +834,7 @@ function renderAdmin(){
 }
 function renderAdminDefects(){
   const c=document.getElementById('admin-defects'),nd=document.getElementById('no-defects');
-  const myDefects=isAdmin?defectLog:defectLog.filter(d=>d.unitLocation===userLocation);
+  const myDefects=isAdmin?defectLog:defectLog.filter(d=>!d.unitLocation||d.unitLocation===userLocation);
   const open=myDefects.filter(d=>!d.resolved).sort((a,b)=>escalationLevel(b)-escalationLevel(a));
   const res=myDefects.filter(d=>d.resolved).sort((a,b)=>b.resolvedTs-a.resolvedTs).slice(0,10);
   const all=[...open,...res];
@@ -865,8 +865,8 @@ function renderAdminMaint(){
 }
 function renderAdminHistory(){
   const h=document.getElementById('admin-history'),nh=document.getElementById('no-history');
-  const myInsps=isAdmin?inspections:inspections.filter(i=>i.unitLocation===userLocation);
-  const sorted=[...myInsps].sort((a,b)=>b.ts-a.ts);
+  const myInsps=(isAdmin?inspections:inspections.filter(i=>!i.unitLocation||i.unitLocation===userLocation));
+  const sorted=[...myInsps].sort((a,b)=>(b.ts||0)-(a.ts||0));
   if(!sorted.length){h.innerHTML='';nh.style.display='block';return;}nh.style.display='none';
   h.innerHTML=sorted.map(r=>{
     const photoCount=r.defects?r.defects.reduce((n,d)=>n+(d.photos?d.photos.length:0),0):0;
@@ -1042,13 +1042,20 @@ async function submitInspection(){
   const tech=document.getElementById('tech-name').value.trim();
   if(!tech){alert('Please enter your name.');return;}
   const u=fleet[currentUnit];const secs=ITEMS[u.type];
-  let defects=[],unchecked=[];
+  let defects=[],unchecked=[],allItems=[];
   for(const [sec,items] of Object.entries(secs)){
     items.forEach((item,idx)=>{
       const key='s'+sec.replace(/\W/g,'')+idx;
       const checked=document.querySelector(`input[name="${key}"]:checked`);
-      if(!checked)unchecked.push(item);
-      else if(checked.value==='defect')defects.push({section:sec,item,note:document.getElementById('note-'+key).value,photos:inspectionPhotos[key]||[]});
+      if(!checked){
+        unchecked.push(item);
+        allItems.push({section:sec,item,result:'unchecked',note:'',photos:[]});
+      } else {
+        const note=checked.value==='defect'?document.getElementById('note-'+key).value:'';
+        const photos=inspectionPhotos[key]||[];
+        allItems.push({section:sec,item,result:checked.value,note,photos});
+        if(checked.value==='defect') defects.push({section:sec,item,note,photos});
+      }
     });
   }
   if(unchecked.length>0&&!confirm(`${unchecked.length} item(s) not checked. Submit anyway?`))return;
@@ -1056,7 +1063,7 @@ async function submitInspection(){
   btn.innerHTML='<span class="spinner"></span> Submitting…';btn.disabled=true;
   const odoVal=parseInt(document.getElementById('insp-odo').value)||0;
   if(odoVal>0)setOdo(u.id,odoVal,'inspection');
-  const record={id:currentInspectionId,unitId:u.id,unitType:u.type,unitLocation:u.location,tech,odo:odoVal,notes:document.getElementById('insp-notes').value,ts:Date.now(),defects,gps:gpsData||null,submittedBy:currentUser?.email||''};
+  const record={id:currentInspectionId,unitId:u.id,unitType:u.type,unitLocation:u.location,tech,odo:odoVal,notes:document.getElementById('insp-notes').value,ts:Date.now(),defects,items:allItems,gps:gpsData||null,submittedBy:currentUser?.email||''};
   inspections.push(record);syncDefectLog();
   await sbSaveInspection(record);await sbSaveDefectLog();
   btn.innerHTML='Submit Inspection';btn.disabled=false;

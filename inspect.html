@@ -294,6 +294,7 @@ async function submitInspection() {
     notes: document.getElementById('insp-notes').value,
     ts: Date.now(),
     defects,
+    items: allItems,
     gps: gpsData || null,
     submittedBy: 'field-scan'
   };
