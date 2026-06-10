@@ -45,6 +45,10 @@ textarea{resize:vertical}
 .radio-group input[type=radio]{display:none}
 .radio-group label:has(input[value=ok]:checked){border-color:var(--green-mid);background:var(--green-light)}
 .radio-group label:has(input[value=defect]:checked){border-color:var(--red-mid);background:var(--red-light)}
+.radio-group label:has(input[value=na]:checked){border-color:#aaa;background:#e8e8e8;color:#888}
+.radio-sel-ok{border-color:var(--green-mid)!important;background:var(--green-light)!important;color:var(--green)!important}
+.radio-sel-defect{border-color:var(--red-mid)!important;background:var(--red-light)!important;color:var(--red)!important}
+.radio-sel-na{border-color:#aaa!important;background:#e8e8e8!important;color:#888!important}
 .radio-group label:has(input[value=na]:checked){border-color:var(--border-med);background:var(--bg);opacity:.6}
 .radio-sel-ok{border-color:var(--green-mid)!important;background:var(--green-light)!important}
 .radio-sel-defect{border-color:var(--red-mid)!important;background:var(--red-light)!important}
@@ -92,7 +96,7 @@ textarea{resize:vertical}
         <div class="form-row"><label class="fl">Your Name <span style="color:var(--red)">*</span></label><input type="text" id="tech-name" placeholder="First &amp; last name" autocomplete="name"></div>
         <div class="form-row"><label class="fl">Date &amp; Time</label><input type="text" id="insp-date" readonly></div>
       </div>
-      <div class="form-row"><label class="fl">Odometer <span style="font-size:12px;color:var(--text-hint)">(optional — updates maintenance tracking)</span></label><input type="number" id="insp-odo" placeholder="e.g. 84210" min="0"></div>
+      <div class="form-row"><label class="fl">Odometer <span style="color:var(--red)">*</span> <span style="font-size:12px;color:var(--text-hint)">(required)</span></label><input type="number" id="insp-odo" placeholder="e.g. 84210" min="0"></div>
       <div class="form-row">
         <label class="fl">GPS Location <span id="gps-status" style="font-size:12px;color:var(--text-hint)">— tap to capture</span></label>
         <button class="btn sm" id="gps-btn">📍 Capture Location</button>
@@ -288,9 +292,9 @@ async function submitInspection() {
       }
     });
   }
-  const totalItems = Object.values(ITEMS[currentUnit.type]).flat().length;
-  if (unchecked.length === totalItems) { alert('Please complete at least some of the inspection before submitting.'); return; }
-  if (unchecked.length > 0 && !confirm(unchecked.length + ' item(s) not checked. Submit anyway?')) return;
+  const odoVal2 = parseInt(document.getElementById('insp-odo').value) || 0;
+  if (!odoVal2) { alert('Odometer reading is required.'); document.getElementById('insp-odo').focus(); return; }
+  if (unchecked.length > 0) { alert('Please answer all ' + unchecked.length + ' remaining checklist item(s) before submitting.'); return; }
 
   // Show summary IMMEDIATELY - no waiting
   const btn = document.getElementById('submit-btn');

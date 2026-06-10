@@ -77,10 +77,10 @@ textarea{resize:vertical}
 .radio-group input[type=radio]{display:none}
 .radio-group label:has(input[value=ok]:checked){border-color:var(--green-mid);background:var(--green-light)}
 .radio-group label:has(input[value=defect]:checked){border-color:var(--red-mid);background:var(--red-light)}
-.radio-group label:has(input[value=na]:checked){border-color:var(--border-med);background:var(--bg);opacity:.6}
-.radio-sel-ok{border-color:var(--green-mid)!important;background:var(--green-light)!important}
-.radio-sel-defect{border-color:var(--red-mid)!important;background:var(--red-light)!important}
-.radio-sel-na{border-color:var(--border-med)!important;background:var(--bg)!important;opacity:.7}
+.radio-group label:has(input[value=na]:checked){border-color:#aaa;background:#e8e8e8;color:#888}
+.radio-sel-ok{border-color:var(--green-mid)!important;background:var(--green-light)!important;color:var(--green)!important}
+.radio-sel-defect{border-color:var(--red-mid)!important;background:var(--red-light)!important;color:var(--red)!important}
+.radio-sel-na{border-color:#aaa!important;background:#e8e8e8!important;color:#888!important}
 .defect-note{width:100%;margin-top:6px;padding:6px 10px;border:1px solid var(--red-mid);border-radius:var(--radius-sm);background:var(--red-light);color:var(--text);font-size:13px;font-family:inherit;display:none}
 .photo-row{margin-top:8px;display:none}
 .photo-row.visible{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -299,7 +299,7 @@ textarea{resize:vertical}
         <div class="form-row"><label class="fl">Technician name</label><input type="text" id="tech-name" placeholder="Your name"></div>
         <div class="form-row"><label class="fl">Date &amp; time</label><input type="text" id="insp-date" readonly></div>
       </div>
-      <div class="form-row"><label class="fl">Odometer <span style="font-size:12px;color:var(--text-hint)">(updates maintenance tracking)</span></label><input type="number" id="insp-odo" placeholder="e.g. 84210" min="0"></div>
+      <div class="form-row"><label class="fl">Odometer <span style="color:var(--red)">*</span> <span style="font-size:12px;color:var(--text-hint)">(required)</span></label><input type="number" id="insp-odo" placeholder="e.g. 84210" min="0"></div>
       <div class="form-row">
         <label class="fl">GPS Location <span id="gps-status" style="font-size:12px;color:var(--text-hint)">— tap to capture</span></label>
         <button class="btn sm" onclick="captureGPS()" id="gps-btn">📍 Capture Location</button>
@@ -359,12 +359,66 @@ textarea{resize:vertical}
       <div class="tab" onclick="switchTab('maintenance')">Maintenance <span id="maint-tab-count" class="overdue-count" style="display:none">0</span></div>
       <div class="tab" onclick="switchTab('history')">History</div>
       <div class="tab" onclick="switchTab('users')">Users</div>
+      <div class="tab" onclick="switchTab('export')">Export</div>
       <div class="tab" onclick="switchTab('settings')">Settings</div>
     </div>
     <div id="tab-defects"><div id="admin-defects"></div><div id="no-defects" class="empty-state" style="display:none">✓ No open defects!</div></div>
     <div id="tab-maintenance" style="display:none"><div id="admin-maint"></div><div id="no-maint" class="empty-state" style="display:none">✓ All maintenance up to date!</div></div>
     <div id="tab-history" style="display:none"><div id="admin-history"></div><div id="no-history" class="empty-state" style="display:none">No inspections yet.</div></div>
     <div id="tab-users" style="display:none"><div id="admin-users"></div></div>
+    <div id="tab-export" style="display:none">
+      <div class="card">
+        <p style="font-size:16px;font-weight:600;margin-bottom:4px">Export Data</p>
+        <p style="font-size:13px;color:var(--text-sec);margin-bottom:16px">Choose what to export and a date range. Downloads as a CSV you can open in Excel.</p>
+        
+        <p style="font-size:13px;font-weight:600;margin-bottom:8px">What to export</p>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+            <input type="checkbox" id="exp-inspections" checked style="width:16px;height:16px"> All Inspections
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+            <input type="checkbox" id="exp-defects" checked style="width:16px;height:16px"> Open Defects
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+            <input type="checkbox" id="exp-resolved" style="width:16px;height:16px"> Resolved Defects
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+            <input type="checkbox" id="exp-maint" checked style="width:16px;height:16px"> Maintenance Due
+          </label>
+        </div>
+
+        <p style="font-size:13px;font-weight:600;margin-bottom:8px">Location</p>
+        <div style="margin-bottom:16px">
+          <select id="exp-location" style="width:100%;padding:8px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);font-size:14px">
+            <option value="">All Locations</option>
+            <option>NY1</option><option>WCC</option><option>CT1</option><option>FL1</option>
+            <option>GA1</option><option>MD1</option><option>NJ1</option><option>OpCo</option>
+            <option>MO1</option><option>MO2</option><option>IL1</option><option>IN1</option>
+          </select>
+        </div>
+
+        <p style="font-size:13px;font-weight:600;margin-bottom:8px">Date Range</p>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+          <button class="btn sm" onclick="setExpRange(7)" id="exp-r7">Last 7 days</button>
+          <button class="btn sm" onclick="setExpRange(30)" id="exp-r30">Last 30 days</button>
+          <button class="btn sm" onclick="setExpRange(90)" id="exp-r90">Last 90 days</button>
+          <button class="btn sm" onclick="setExpRange(0)" id="exp-rall">All time</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+          <div style="flex:1;min-width:140px">
+            <label class="fl">From</label>
+            <input type="date" id="exp-from" style="width:100%;padding:8px;border:1px solid var(--border-med);border-radius:var(--radius-sm);font-size:14px">
+          </div>
+          <div style="flex:1;min-width:140px">
+            <label class="fl">To</label>
+            <input type="date" id="exp-to" style="width:100%;padding:8px;border:1px solid var(--border-med);border-radius:var(--radius-sm);font-size:14px">
+          </div>
+        </div>
+
+        <div id="exp-preview" style="font-size:13px;color:var(--text-sec);margin-bottom:12px"></div>
+        <button class="btn primary full" onclick="runExport()">⬇ Download CSV</button>
+      </div>
+    </div>
     <div id="tab-settings" style="display:none">
       <div class="card" style="border-left:3px solid var(--purple)">
         <p style="font-size:14px;font-weight:500;margin-bottom:6px">👑 Admin Accounts</p>
@@ -417,6 +471,20 @@ textarea{resize:vertical}
   </div>
 </div>
 
+<!-- Inspection Detail Modal -->
+<div id="insp-detail-modal" style="display:none;position:fixed;inset:0;z-index:200;display:none">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.5)" onclick="closeInspDetail()"></div>
+  <div style="position:absolute;top:0;right:0;width:min(600px,100vw);height:100vh;background:var(--surface);overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.2);display:flex;flex-direction:column">
+    <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1">
+      <div>
+        <div style="font-size:16px;font-weight:600" id="idd-title">Inspection Detail</div>
+        <div style="font-size:12px;color:var(--text-sec)" id="idd-sub"></div>
+      </div>
+      <button class="btn sm" onclick="closeInspDetail()">✕ Close</button>
+    </div>
+    <div style="padding:16px;flex:1" id="idd-body"></div>
+  </div>
+</div>
 </div><!-- /app-wrap -->
 
 <script>
@@ -854,12 +922,13 @@ function getEscEmail(loc,lv){const l=escalationSettings[loc]||{};return(['manage
 // ─── ADMIN ────────────────────────────────────────────────────────────────────
 function switchTab(tab){
   activeTab=tab;
-  ['defects','maintenance','history','users','settings'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===tab?'block':'none';});
-  document.querySelectorAll('.tab').forEach((el,i)=>{el.classList.toggle('active',['defects','maintenance','history','users','settings'][i]===tab);});
+  ['defects','maintenance','history','users','export','settings'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===tab?'block':'none';});
+  document.querySelectorAll('.tab').forEach((el,i)=>{el.classList.toggle('active',['defects','maintenance','history','users','export','settings'][i]===tab);});
   if(tab==='defects')renderAdminDefects();
   if(tab==='maintenance')renderAdminMaint();
   if(tab==='history')renderAdminHistory();
   if(tab==='users')renderAdminUsers();
+  if(tab==='export')initExport();
   if(tab==='settings'){renderIntervalSettings();renderEscalationSettings();renderAdminEmailList();}
 }
 function renderAdmin(){
@@ -917,9 +986,24 @@ function renderAdminHistory(){
   const myInsps=(isAdmin?inspections:inspections.filter(i=>!i.unitLocation||i.unitLocation===userLocation));
   const sorted=[...myInsps].sort((a,b)=>(b.ts||0)-(a.ts||0));
   if(!sorted.length){h.innerHTML='';nh.style.display='block';return;}nh.style.display='none';
-  h.innerHTML=sorted.map(r=>{
+  h.innerHTML=sorted.map((r,idx)=>{
     const photoCount=r.defects?r.defects.reduce((n,d)=>n+(d.photos?d.photos.length:0),0):0;
-    return`<div class="history-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>${r.unitId}</strong>${r.unitLocation?`<span class="loc-tag">${r.unitLocation}</span>`:''} ${r.defects&&r.defects.length?`<span class="badge defect">⚠ ${r.defects.length} defect${r.defects.length>1?'s':''}</span>`:`<span class="badge ok">✓ Passed</span>`}${r.gps?` <span class="gps-badge">📍</span>`:''}${photoCount?` <span class="tag">📷 ${photoCount}</span>`:''}</div><div style="font-size:13px;color:var(--text-sec);margin-top:2px">${new Date(r.ts).toLocaleString()} · ${r.tech}${r.odo?' · '+parseInt(r.odo).toLocaleString()+' mi':''}</div></div><span class="tag">${typeName(r.unitType)}</span></div>`;
+    const safeId=encodeURIComponent(r.id||idx);
+    return`<div class="history-card" style="cursor:pointer" onclick="openInspDetail(${JSON.stringify(r).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')})">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <strong>${r.unitId}</strong>${r.unitLocation?`<span class="loc-tag">${r.unitLocation}</span>`:''}
+          ${r.defects&&r.defects.length?`<span class="badge defect">⚠ ${r.defects.length} defect${r.defects.length>1?'s':''}</span>`:`<span class="badge ok">✓ Passed</span>`}
+          ${r.gps?`<span class="gps-badge">📍</span>`:''}
+          ${photoCount?`<span class="tag">📷 ${photoCount}</span>`:''}
+        </div>
+        <div style="font-size:13px;color:var(--text-sec);margin-top:2px">${new Date(r.ts).toLocaleString()} · ${r.tech}${r.odo?' · '+parseInt(r.odo).toLocaleString()+' mi':''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="tag">${typeName(r.unitType)}</span>
+        <span style="color:var(--blue);font-size:13px">View →</span>
+      </div>
+    </div>`;
   }).join('');
 }
 async function renderAdminUsers(){
@@ -935,6 +1019,237 @@ async function renderAdminUsers(){
     c.innerHTML=`<div class="card"><p style="font-size:14px;font-weight:500;margin-bottom:12px">Registered Users (${data.users.length})</p>${data.users.map(u=>{const meta=u.user_metadata||{};return`<div class="user-card"><div><div style="font-weight:500">${meta.full_name||u.email}</div><div style="font-size:13px;color:var(--text-sec)">${u.email}</div><div style="font-size:12px;color:var(--text-hint);margin-top:2px">Location: ${meta.location||'—'} · Joined: ${new Date(u.created_at).toLocaleDateString()}</div></div><span class="role-badge ${ADMIN_EMAILS.includes(u.email)?'role-admin':'role-gm'}">${ADMIN_EMAILS.includes(u.email)?'Admin':'GM'}</span></div>`;}).join('')}</div>`;
   }catch(e){c.innerHTML=`<div class="card"><p style="font-size:13px;color:var(--text-sec)">View and manage users in your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/users" target="_blank" style="color:var(--blue)">Supabase Auth dashboard →</a></p></div>`;}
 }
+// ─── INSPECTION DETAIL PANEL ─────────────────────────────────────────────────
+function openInspDetail(r){
+  const modal=document.getElementById('insp-detail-modal');
+  document.getElementById('idd-title').textContent='Unit '+r.unitId+(r.unitLocation?' — '+r.unitLocation:'');
+  document.getElementById('idd-sub').textContent=new Date(r.ts).toLocaleString()+' · '+r.tech+(r.odo?' · '+parseInt(r.odo).toLocaleString()+' mi':'');
+
+  let html='';
+
+  // GPS Map
+  if(r.gps&&r.gps.lat&&r.gps.lng){
+    const lat=r.gps.lat,lng=r.gps.lng;
+    html+=`<div style="margin-bottom:16px">
+      <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin-bottom:8px">GPS Location</p>
+      <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:6px">
+        <iframe 
+          src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed" 
+          width="100%" height="220" style="border:none;display:block"
+          allowfullscreen loading="lazy">
+        </iframe>
+      </div>
+      <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" class="btn sm">📍 Open in Google Maps</a>
+    </div>`;
+  }
+
+  // Summary info
+  html+=`<div class="grid2" style="margin-bottom:16px">
+    <div><div style="font-size:12px;color:var(--text-sec)">Unit</div><div style="font-weight:600">${r.unitId}</div></div>
+    <div><div style="font-size:12px;color:var(--text-sec)">Type</div><div>${typeName(r.unitType)}</div></div>
+    <div><div style="font-size:12px;color:var(--text-sec)">Technician</div><div>${r.tech}</div></div>
+    <div><div style="font-size:12px;color:var(--text-sec)">Odometer</div><div>${r.odo?parseInt(r.odo).toLocaleString()+' mi':'—'}</div></div>
+    ${r.notes?`<div style="grid-column:span 2"><div style="font-size:12px;color:var(--text-sec)">Notes</div><div>${r.notes}</div></div>`:''}
+  </div>`;
+
+  // Defects with photos
+  if(r.defects&&r.defects.length){
+    html+=`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin-bottom:8px">Defects (${r.defects.length})</p>`;
+    r.defects.forEach(d=>{
+      const photos=d.photos&&d.photos.length?d.photos:[];
+      html+=`<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="font-weight:600;font-size:14px">${d.item}</div>
+        <div style="font-size:13px;color:var(--text-sec)">${d.section}${d.note?' · '+d.note:''}</div>
+        ${photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${photos.map(p=>`<img src="${p.url}" style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer" onclick="openPhotoModal('${p.url}')">`).join('')}</div>`:''}
+      </div>`;
+    });
+    html+='<div style="margin-bottom:16px"></div>';
+  } else {
+    html+=`<div class="alert-box success" style="margin-bottom:16px"><strong>✓ No defects — passed inspection</strong></div>`;
+  }
+
+  // Full checklist if available
+  if(r.items&&r.items.length){
+    html+=`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin-bottom:8px">Full Checklist</p>`;
+    let lastSection='';
+    r.items.forEach(item=>{
+      if(item.section!==lastSection){
+        if(lastSection) html+='</div>';
+        html+=`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-hint);padding:6px 0;border-bottom:1px solid var(--border);margin-bottom:4px">${item.section}</div>`;
+        lastSection=item.section;
+      }
+      const color=item.result==='ok'?'var(--green)':item.result==='defect'?'var(--red)':'var(--text-hint)';
+      const icon=item.result==='ok'?'✓':item.result==='defect'?'⚠':'—';
+      html+=`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span>${item.item}</span>
+        <span style="color:${color};font-weight:600;white-space:nowrap;margin-left:8px">${icon} ${item.result==='na'?'N/A':item.result==='ok'?'OK':item.result==='defect'?'Defect':'—'}</span>
+      </div>`;
+    });
+    if(lastSection) html+='</div>';
+  }
+
+  document.getElementById('idd-body').innerHTML=html;
+  modal.style.display='block';
+  document.body.style.overflow='hidden';
+}
+
+function closeInspDetail(){
+  document.getElementById('insp-detail-modal').style.display='none';
+  document.body.style.overflow='';
+}
+
+// ─── EXPORT ──────────────────────────────────────────────────────────────────
+function setExpRange(days){
+  const to=new Date();
+  const from=new Date();
+  if(days>0) from.setDate(from.getDate()-days);
+  else from.setFullYear(2020);
+  document.getElementById('exp-from').value=from.toISOString().split('T')[0];
+  document.getElementById('exp-to').value=to.toISOString().split('T')[0];
+  // Highlight active button
+  ['7','30','90','all'].forEach(r=>{
+    const b=document.getElementById('exp-r'+r);
+    if(b) b.classList.toggle('primary', (days===parseInt(r))||(days===0&&r==='all'));
+  });
+  updateExpPreview();
+}
+
+function initExport(){
+  setExpRange(30);
+  document.getElementById('exp-from').addEventListener('change',updateExpPreview);
+  document.getElementById('exp-to').addEventListener('change',updateExpPreview);
+  document.getElementById('exp-location').addEventListener('change',updateExpPreview);
+  updateExpPreview();
+}
+
+function updateExpPreview(){
+  const from=new Date(document.getElementById('exp-from').value);
+  const to=new Date(document.getElementById('exp-to').value);
+  to.setHours(23,59,59);
+  const loc=document.getElementById('exp-location').value;
+  const myInsps=inspections.filter(i=>{
+    const d=new Date(i.ts);
+    if(d<from||d>to) return false;
+    if(loc&&i.unitLocation!==loc) return false;
+    return true;
+  });
+  const myDefects=defectLog.filter(d=>{
+    const dt=new Date(d.ts);
+    if(dt<from||dt>to) return false;
+    if(loc&&d.unitLocation!==loc) return false;
+    return true;
+  });
+  const open=myDefects.filter(d=>!d.resolved).length;
+  const resolved=myDefects.filter(d=>d.resolved).length;
+  document.getElementById('exp-preview').innerHTML=
+    `<strong>${myInsps.length}</strong> inspections · <strong>${open}</strong> open defects · <strong>${resolved}</strong> resolved defects in range`;
+}
+
+function escCSV(v){
+  if(v===null||v===undefined) return '';
+  const s=String(v);
+  if(s.includes(',')||s.includes('"')||s.includes('\n')) return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+
+function runExport(){
+  const from=new Date(document.getElementById('exp-from').value);
+  const to=new Date(document.getElementById('exp-to').value);
+  to.setHours(23,59,59);
+  const loc=document.getElementById('exp-location').value;
+  const expInsps=document.getElementById('exp-inspections').checked;
+  const expDefects=document.getElementById('exp-defects').checked;
+  const expResolved=document.getElementById('exp-resolved').checked;
+  const expMaint=document.getElementById('exp-maint').checked;
+
+  let csv='';
+
+  if(expInsps){
+    csv+='INSPECTIONS\n';
+    csv+='Date,Unit ID,Location,Type,Technician,Odometer,Defects Found,Notes\n';
+    inspections.filter(i=>{
+      const d=new Date(i.ts);
+      return d>=from&&d<=to&&(!loc||i.unitLocation===loc);
+    }).sort((a,b)=>b.ts-a.ts).forEach(i=>{
+      csv+=[
+        escCSV(new Date(i.ts).toLocaleString()),
+        escCSV(i.unitId),
+        escCSV(i.unitLocation||''),
+        escCSV(i.unitType||''),
+        escCSV(i.tech),
+        escCSV(i.odo||''),
+        escCSV(i.defects?i.defects.length:0),
+        escCSV(i.notes||'')
+      ].join(',')+='\n';
+    });
+    csv+='\n';
+  }
+
+  if(expDefects||expResolved){
+    csv+='DEFECTS\n';
+    csv+='Date Reported,Unit ID,Location,Section,Item,Note,Reported By,Days Open,Status,Resolved By,Resolution Note\n';
+    defectLog.filter(d=>{
+      const dt=new Date(d.ts);
+      if(dt<from||dt>to) return false;
+      if(loc&&d.unitLocation!==loc) return false;
+      if(!expDefects&&!d.resolved) return false;
+      if(!expResolved&&d.resolved) return false;
+      return true;
+    }).sort((a,b)=>b.ts-a.ts).forEach(d=>{
+      const days=Math.floor((Date.now()-d.ts)/86400000);
+      csv+=[
+        escCSV(new Date(d.ts).toLocaleString()),
+        escCSV(d.unitId),
+        escCSV(d.unitLocation||''),
+        escCSV(d.section),
+        escCSV(d.item),
+        escCSV(d.note||''),
+        escCSV(d.tech),
+        escCSV(days),
+        escCSV(d.resolved?'Resolved':'Open'),
+        escCSV(d.resolvedBy||''),
+        escCSV(d.resolvedNote||'')
+      ].join(',')+='\n';
+    });
+    csv+='\n';
+  }
+
+  if(expMaint){
+    csv+='MAINTENANCE DUE\n';
+    csv+='Unit ID,Location,Type,Item,Last Service Date,Last Service Miles,Miles Overdue,Days Overdue\n';
+    getVisibleFleet().filter(u=>!loc||u.location===loc).forEach(u=>{
+      MAINT_ITEMS.filter(m=>m.types.includes(u.type)).forEach(m=>{
+        const s=maintStatus(u.id,m.id);
+        if(s.status==='ok') return;
+        const last=getLastMaint(u.id,m.id);
+        csv+=[
+          escCSV(u.id),
+          escCSV(u.location||''),
+          escCSV(u.type),
+          escCSV(m.name),
+          escCSV(last?new Date(last.ts).toLocaleDateString():'Never'),
+          escCSV(last?last.miles:''),
+          escCSV(s.milesLeft<0?Math.abs(s.milesLeft):''),
+          escCSV(s.daysLeft<0?Math.abs(s.daysLeft):'')
+        ].join(',')+='\n';
+      });
+    });
+    csv+='\n';
+  }
+
+  if(!csv){alert('Please select at least one export type.');return;}
+
+  // Download
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const dateStr=new Date().toISOString().split('T')[0];
+  const locStr=loc||'AllLocations';
+  a.href=url;a.download=`AWRS_Fleet_Export_${locStr}_${dateStr}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function renderAdminEmailList(){
   const el=document.getElementById('admin-email-list');
   if(!el) return;
@@ -1117,9 +1432,11 @@ async function submitInspection(){
       }
     });
   }
+  const odoVal2=parseInt(document.getElementById('insp-odo').value)||0;
+  if(!odoVal2){alert('Odometer reading is required before submitting.');document.getElementById('insp-odo').focus();return;}
   const totalItems=Object.values(secs).flat().length;
-  if(unchecked.length===totalItems){alert('Please complete at least some of the inspection before submitting.');return;}
-  if(unchecked.length>0&&!confirm(unchecked.length+' item(s) not checked. Submit anyway?'))return;
+  if(unchecked.length===totalItems){alert('Please complete the inspection checklist before submitting.');return;}
+  if(unchecked.length>0){alert('Please answer all '+unchecked.length+' remaining checklist item(s) before submitting.');return;}
   const btn=document.getElementById('submit-insp-btn');
   btn.innerHTML='<span class="spinner"></span> Submitting…';btn.disabled=true;
   const odoVal=parseInt(document.getElementById('insp-odo').value)||0;
