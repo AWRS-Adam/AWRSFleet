@@ -25,10 +25,24 @@
   --purple:#533AB7;--purple-light:#EEEDFE;--purple-mid:#AFA9EC;
   --radius:10px;--radius-sm:6px;
 }
+[data-theme="dark"]{
+  --bg:#111110;--surface:#1c1c1a;--border:#2e2e2b;--border-med:#3d3d39;
+  --text:#f0ede8;--text-sec:#a8a49e;--text-hint:#6b6965;
+  --blue:#4A9FE0;--blue-dark:#185FA5;--blue-light:#1a2f45;--blue-mid:#1e3d5c;
+  --red:#E05555;--red-light:#2d1515;--red-mid:#5c1f1f;
+  --green:#5CB85C;--green-light:#1a2d1a;--green-mid:#1e3d1e;
+  --amber:#E0A020;--amber-light:#2d2010;--amber-mid:#5c3d10;
+  --orange:#E07040;--orange-light:#2d1a10;--orange-mid:#5c2e10;
+  --purple:#9B7FE0;--purple-light:#201a40;--purple-mid:#3d2d6b;
+}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;min-height:100vh}
 
 /* AUTH */
 .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0C447C 0%,#185FA5 60%,#2d7dd2 100%)}
+[data-theme='dark'] .auth-wrap{background:linear-gradient(135deg,#0a1a2e 0%,#0C447C 60%,#185FA5 100%)}
+[data-theme='dark'] .auth-card{background:#1c1c1a;border:1px solid #2e2e2b;}
+[data-theme='dark'] .auth-card h1{color:var(--text)}
+[data-theme='dark'] input,[data-theme='dark'] select,[data-theme='dark'] textarea{background:#111110;color:var(--text);border-color:var(--border-med)}
 .auth-card{background:#fff;border-radius:16px;padding:32px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .auth-logo{text-align:center;margin-bottom:24px}
 .auth-logo-icon{width:56px;height:56px;background:var(--blue);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:10px}
@@ -222,6 +236,7 @@ textarea{resize:vertical}
     <div style="display:flex;gap:8px;align-items:center">
       <span id="sync-status" style="font-size:11px;color:var(--text-sec)"></span>
       <button class="btn sm" id="refresh-btn" title="Refresh data">↻</button>
+      <button class="btn sm" id="theme-btn" title="Toggle dark mode">🌙</button>
       <button class="btn sm" id="admin-btn" onclick="showScreen('screen-admin')" style="display:none">Admin <span id="overdue-badge" class="overdue-count" style="display:none">0</span></button>
       <button class="btn sm" id="signout-btn">Sign Out</button>
     </div>
@@ -2137,6 +2152,7 @@ function showScreen(id){
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('load', function() {
+  initTheme();
   console.log('Page loaded, binding events');
   document.getElementById('tab-login').onclick = () => switchAuthTab('login');
   document.getElementById('tab-register').onclick = () => switchAuthTab('register');
@@ -2164,10 +2180,27 @@ setInterval(async()=>{
   }catch(e){}
 }, 300000); // every 5 minutes
 
-// Global delegated clicks — placed at end so all functions are defined
+// ─── THEME ───────────────────────────────────────────────────────────────────
+function initTheme(){
+  const saved=localStorage.getItem('awrs-theme')||'light';
+  applyTheme(saved);
+}
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme',theme);
+  const btn=document.getElementById('theme-btn');
+  if(btn) btn.textContent=theme==='dark'?'☀️':'🌙';
+  localStorage.setItem('awrs-theme',theme);
+}
+function toggleTheme(){
+  const current=document.documentElement.getAttribute('data-theme')||'light';
+  applyTheme(current==='dark'?'light':'dark');
+}
+
+// ─── GLOBAL DELEGATED CLICKS — placed at end so all functions are defined
 document.addEventListener('click', function(e) {
   if(e.target && e.target.id === 'signout-btn') doSignOut();
   if(e.target && e.target.id === 'refresh-btn') { console.log('Refresh clicked!'); doRefresh(); }
+  if(e.target && e.target.id === 'theme-btn') toggleTheme();
   if(e.target && e.target.id === 'admin-btn') showScreen('screen-admin');
 });
 </script>
