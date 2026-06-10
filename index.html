@@ -523,27 +523,39 @@ async function doForgotPassword(){
 
 // click delegation moved to end of script
 
+async function fetchFromSupabase(table, select){
+  const url=`${SUPABASE_URL}/rest/v1/${table}?select=${select}&order=created_at.desc&limit=500`;
+  const res=await fetch(url,{
+    headers:{
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  if(!res.ok) throw new Error(`${table} fetch failed: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
 async function doRefresh(){
   const rb=document.getElementById('refresh-btn');
   if(rb){rb.textContent='⟳';rb.disabled=true;}
   showSyncStatus('⟳ Refreshing…','loading');
   try{
-    console.log('Starting refresh...');
-    const inspsRes=await sb.from('fi_inspections').select('id,data').order('created_at',{ascending:false}).limit(500);
-    console.log('Inspections result:',inspsRes.error?'ERROR:'+inspsRes.error.message:inspsRes.data?.length+' rows');
-    const defectsRes=await sb.from('fi_defect_log').select('log_id,data');
-    console.log('Defects result:',defectsRes.error?'ERROR:'+defectsRes.error.message:defectsRes.data?.length+' rows');
-    const odoRes=await sb.from('fi_odometer').select('unit_id,data');
-    if(inspsRes.data){
-      inspections=inspsRes.data.map(r=>r.data).filter(Boolean);
-      console.log('Loaded inspections:',inspections.length,'first:',JSON.stringify(inspections[0]?.unitId));
-    }
-    if(defectsRes.data) defectLog=defectsRes.data.map(r=>r.data).filter(d=>d&&d.logId);
-    if(odoRes.data){odometerData={};odoRes.data.forEach(r=>{odometerData[r.unit_id]=r.data;});}
+    console.log('Starting refresh via REST API...');
+    const [insps,defects,odo]=await Promise.all([
+      fetchFromSupabase('fi_inspections','id,data'),
+      fetchFromSupabase('fi_defect_log','log_id,data'),
+      fetchFromSupabase('fi_odometer','unit_id,data'),
+    ]);
+    console.log('Got inspections:',insps.length,'defects:',defects.length);
+    inspections=insps.map(r=>r.data).filter(Boolean);
+    console.log('First inspection unitId:',inspections[0]?.unitId);
+    defectLog=defects.map(r=>r.data).filter(d=>d&&d.logId);
+    odometerData={};odo.forEach(r=>{odometerData[r.unit_id]=r.data;});
     syncDefectLog();renderFleet();updateOverdueBadge();
     showSyncStatus('✓ Refreshed','ok');
   }catch(e){
-    console.error('Refresh error:',e.message,e.stack);
+    console.error('Refresh error:',e.message);
     showSyncStatus('⚠ Failed','error');
   }
   if(rb){rb.textContent='↻';rb.disabled=false;}
