@@ -227,17 +227,9 @@ textarea{resize:vertical}
     </div>
   </div>
   <div class="content">
-    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
-      <div class="search-wrap" style="flex:1;margin-bottom:0">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="search-input" placeholder="Search by unit ID, VIN, make…" oninput="renderFleet()">
-      </div>
-      <select id="location-filter" onchange="renderFleet()" style="padding:9px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:14px;min-width:80px">
-        <option value="">All</option>
-        <option>NY1</option><option>WCC</option><option>CT1</option><option>FL1</option>
-        <option>GA1</option><option>MD1</option><option>NJ1</option><option>OpCo</option>
-        <option>MO1</option><option>MO2</option><option>IL1</option><option>IN1</option>
-      </select>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Search by unit ID, VIN, make…" oninput="renderFleet()">
     </div>
     <div class="filter-row">
       <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
@@ -245,6 +237,12 @@ textarea{resize:vertical}
       <button class="filter-btn" data-filter="heavy" onclick="setFilter('heavy')">Box Trucks</button>
       <button class="filter-btn" data-filter="trailer" onclick="setFilter('trailer')">Trailers</button>
       <button class="filter-btn" data-filter="maint-due" onclick="setFilter('maint-due')">🔧 Maint Due</button>
+      <select id="location-filter" onchange="renderFleet()" style="padding:5px 10px;border:1px solid var(--border-med);border-radius:20px;background:var(--surface);color:var(--text-sec);font-size:13px;cursor:pointer">
+        <option value="">📍 All Locations</option>
+        <option>NY1</option><option>WCC</option><option>CT1</option><option>FL1</option>
+        <option>GA1</option><option>MD1</option><option>NJ1</option><option>OpCo</option>
+        <option>MO1</option><option>MO2</option><option>IL1</option><option>IN1</option>
+      </select>
     </div>
     <div id="fleet-list"></div>
     <div id="home-empty" class="empty-state" style="display:none">No units match your search.</div>
