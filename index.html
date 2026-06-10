@@ -231,14 +231,16 @@ textarea{resize:vertical}
       <span class="search-icon">🔍</span>
       <input type="text" id="search-input" placeholder="Search by unit ID, VIN, make…" oninput="renderFleet()">
     </div>
-    <div class="filter-row">
+    <div class="filter-row" style="flex-wrap:wrap;gap:6px">
       <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
       <button class="filter-btn" data-filter="van" onclick="setFilter('van')">Vans</button>
       <button class="filter-btn" data-filter="heavy" onclick="setFilter('heavy')">Box Trucks</button>
       <button class="filter-btn" data-filter="trailer" onclick="setFilter('trailer')">Trailers</button>
       <button class="filter-btn" data-filter="maint-due" onclick="setFilter('maint-due')">🔧 Maint Due</button>
-      <select id="location-filter" onchange="renderFleet()" style="padding:5px 10px;border:1px solid var(--border-med);border-radius:20px;background:var(--surface);color:var(--text-sec);font-size:13px;cursor:pointer">
-        <option value="">📍 All Locations</option>
+      <button class="filter-btn" data-filter="not-inspected" onclick="setFilter('not-inspected')">⏱ Not Inspected</button>
+      <button class="filter-btn" data-filter="has-defects" onclick="setFilter('has-defects')">⚠ Defects</button>
+      <select id="location-filter" onchange="renderFleet()" style="padding:4px 8px;border:1px solid var(--border-med);border-radius:20px;background:var(--surface);color:var(--text-sec);font-size:12px;cursor:pointer;height:28px">
+        <option value="">📍 Location</option>
         <option>NY1</option><option>WCC</option><option>CT1</option><option>FL1</option>
         <option>GA1</option><option>MD1</option><option>NJ1</option><option>OpCo</option>
         <option>MO1</option><option>MO2</option><option>IL1</option><option>IN1</option>
@@ -1464,6 +1466,15 @@ function renderFleet(){
     if(activeFilter==='heavy'&&u.type!=='heavy')return false;
     if(activeFilter==='trailer'&&u.type!=='trailer')return false;
     if(activeFilter==='maint-due'){const ms=unitMaintSummary(u.id,u.type);if(!ms.due)return false;}
+    if(activeFilter==='not-inspected'){
+      const last=inspections.filter(x=>x.unitId===u.id).sort((a,b)=>b.ts-a.ts)[0];
+      const hours=last?Math.floor((Date.now()-last.ts)/3600000):999;
+      if(hours<12)return false;
+    }
+    if(activeFilter==='has-defects'){
+      const openD=defectLog.filter(d=>d.unitId===u.id&&!d.resolved);
+      if(!openD.length)return false;
+    }
     if(locFilter&&u.location!==locFilter)return false;
     const searchStr=[u.id,u.make,u.vin,u.location,u.year,typeName(u.type)].join(' ').toLowerCase();
     if(q&&!q.trim().split(/\s+/).every(t=>searchStr.includes(t)))return false;
