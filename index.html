@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.supabase.com https://maps.google.com https://maps.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://api.resend.com data: blob:; img-src * data: blob:; connect-src * data: blob:;">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="version" content="1781059486">
@@ -484,6 +485,21 @@ textarea{resize:vertical}
     <div style="margin-top:10px;display:flex;justify-content:flex-end">
       <button class="btn sm" onclick="document.getElementById('photo-modal').style.display='none'">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- Maintenance Detail Panel -->
+<div id="maint-detail-modal" style="display:none;position:fixed;inset:0;z-index:200">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.5)" onclick="closeMaintDetail()"></div>
+  <div style="position:absolute;top:0;right:0;width:min(600px,100vw);height:100vh;background:var(--surface);overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.2);display:flex;flex-direction:column">
+    <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1">
+      <div>
+        <div style="font-size:16px;font-weight:600" id="mdd-title">Maintenance Due</div>
+        <div style="font-size:12px;color:var(--text-sec)" id="mdd-sub"></div>
+      </div>
+      <button class="btn sm" onclick="closeMaintDetail()">✕ Close</button>
+    </div>
+    <div style="padding:16px;flex:1" id="mdd-body"></div>
   </div>
 </div>
 
@@ -1109,6 +1125,106 @@ async function renderAdminUsers(){
     c.innerHTML=`<div class="card"><p style="font-size:14px;font-weight:500;margin-bottom:12px">Registered Users (${data.users.length})</p>${data.users.map(u=>{const meta=u.user_metadata||{};return`<div class="user-card"><div><div style="font-weight:500">${meta.full_name||u.email}</div><div style="font-size:13px;color:var(--text-sec)">${u.email}</div><div style="font-size:12px;color:var(--text-hint);margin-top:2px">Location: ${meta.location||'—'} · Joined: ${new Date(u.created_at).toLocaleDateString()}</div></div><span class="role-badge ${ADMIN_EMAILS.includes(u.email)?'role-admin':'role-gm'}">${ADMIN_EMAILS.includes(u.email)?'Admin':'GM'}</span></div>`;}).join('')}</div>`;
   }catch(e){c.innerHTML=`<div class="card"><p style="font-size:13px;color:var(--text-sec)">View and manage users in your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/users" target="_blank" style="color:var(--blue)">Supabase Auth dashboard →</a></p></div>`;}
 }
+// ─── MAINTENANCE DETAIL PANEL ────────────────────────────────────────────────
+function openMaintDetail(unitId, location){
+  const u=fleet.find(f=>f.id===unitId);
+  const modal=document.getElementById('maint-detail-modal');
+  document.getElementById('mdd-title').textContent='🔧 Maintenance — '+unitId;
+  document.getElementById('mdd-sub').textContent=(location||'')+(u?' · '+typeName(u.type):'');
+  
+  const odo=getOdo(unitId);
+  const items=MAINT_ITEMS.filter(m=>m.types.includes(u?.type||'van')&&isMaintEnabled(m.id));
+  const vf=getVisibleFleet();
+  const unitIdx=vf.indexOf(u);
+
+  let html=`<div class="card" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:12px;color:var(--text-sec)">Current Odometer</div>
+        <div style="font-size:22px;font-weight:700">${odo.miles?odo.miles.toLocaleString()+' mi':'Not recorded'}</div>
+        <div style="font-size:11px;color:var(--text-hint)">${odo.source==='inspection'?'From last inspection':odo.source==='manual'?'Manually entered':''}</div>
+      </div>
+      ${unitIdx>=0?`<button class="btn sm primary" onclick="closeMaintDetail();openMaintScreen(${unitIdx})">Full Maint Screen →</button>`:''}
+    </div>
+  </div>`;
+
+  // Due items first
+  const dueItems=items.filter(m=>maintStatus(unitId,m.id).status==='due');
+  const soonItems=items.filter(m=>maintStatus(unitId,m.id).status==='soon');
+  const okItems=items.filter(m=>maintStatus(unitId,m.id).status==='ok');
+
+  if(dueItems.length){
+    html+=`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin-bottom:8px">Overdue (${dueItems.length})</p>`;
+    dueItems.forEach(m=>{
+      const s=maintStatus(unitId,m.id);
+      const last=getLastMaint(unitId,m.id);
+      html+=`<div class="maint-card due" style="margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:20px">${m.icon}</span>
+            <div>
+              <div style="font-weight:600;font-size:14px">${m.name}</div>
+              <div style="font-size:12px;color:var(--text-sec)">${last?'Last: '+new Date(last.ts).toLocaleDateString()+' at '+last.miles.toLocaleString()+' mi':'Never serviced'}</div>
+            </div>
+          </div>
+          <span class="maint-pill-due">⚠ ${Math.abs(s.milesLeft)>0?Math.abs(s.milesLeft).toLocaleString()+' mi':''}${s.daysLeft<0?' '+Math.abs(s.daysLeft)+'d':''} overdue</span>
+        </div>
+        <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:100%;background:var(--red)"></div></div>
+        <button class="btn sm success" style="margin-top:8px" onclick="logMaintComplete('${unitId}','${m.id}')">✓ Log as Completed</button>
+      </div>`;
+    });
+  }
+
+  if(soonItems.length){
+    html+=`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--amber);margin:12px 0 8px">Due Soon (${soonItems.length})</p>`;
+    soonItems.forEach(m=>{
+      const s=maintStatus(unitId,m.id);
+      const last=getLastMaint(unitId,m.id);
+      html+=`<div class="maint-card soon" style="margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:20px">${m.icon}</span>
+            <div>
+              <div style="font-weight:600;font-size:14px">${m.name}</div>
+              <div style="font-size:12px;color:var(--text-sec)">${last?'Last: '+new Date(last.ts).toLocaleDateString():'Never serviced'}</div>
+            </div>
+          </div>
+          <span class="maint-pill-soon">⏱ ${s.milesLeft>0?s.milesLeft.toLocaleString()+' mi':''} ${s.daysLeft>0?s.daysLeft+'d':''} left</span>
+        </div>
+        <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${Math.round(s.pct*100)}%;background:var(--amber)"></div></div>
+        <button class="btn sm success" style="margin-top:8px" onclick="logMaintComplete('${unitId}','${m.id}')">✓ Log as Completed</button>
+      </div>`;
+    });
+  }
+
+  if(okItems.length){
+    html+=`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin:12px 0 8px">Up to Date (${okItems.length})</p>`;
+    okItems.forEach(m=>{
+      const last=getLastMaint(unitId,m.id);
+      const s=maintStatus(unitId,m.id);
+      html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">${m.icon}</span>
+          <div>
+            <div style="font-size:13px;font-weight:500">${m.name}</div>
+            <div style="font-size:11px;color:var(--text-hint)">${last?'Last: '+new Date(last.ts).toLocaleDateString():'Never'}</div>
+          </div>
+        </div>
+        <span class="badge ok-maint">✓ ${s.milesLeft>0?s.milesLeft.toLocaleString()+' mi':''} ${s.daysLeft>0?s.daysLeft+'d':''} left</span>
+      </div>`;
+    });
+  }
+
+  document.getElementById('mdd-body').innerHTML=html;
+  modal.style.display='block';
+  document.body.style.overflow='hidden';
+}
+
+function closeMaintDetail(){
+  document.getElementById('maint-detail-modal').style.display='none';
+  document.body.style.overflow='';
+}
+
 // ─── DOCUMENTS PANEL ─────────────────────────────────────────────────────────
 async function openDocsPanel(unitId, location){
   const modal=document.getElementById('docs-modal');
@@ -1773,7 +1889,7 @@ function renderFleet(){
     const maxEsc=openD.reduce((m,d)=>Math.max(m,escalationLevel(d)),-1);
     const escWarn=maxEsc>=0?`<span class="esc-pill ${ESCALATION_LEVELS[maxEsc].cls}">${ESCALATION_LEVELS[maxEsc].label}</span>`:'';
     const ms=unitMaintSummary(u.id,u.type);
-    const maintWarn=ms.due>0?`<span class="maint-pill-due">🔧 ${ms.due} due</span>`:ms.soon>0?`<span class="maint-pill-soon">🔧 ${ms.soon} soon</span>`:'';
+    const maintWarn=ms.due>0?`<span class="maint-pill-due" style="cursor:pointer" onclick="event.stopPropagation();openMaintDetail('${u.id}','${u.location||''}')">🔧 ${ms.due} due</span>`:ms.soon>0?`<span class="maint-pill-soon" style="cursor:pointer" onclick="event.stopPropagation();openMaintDetail('${u.id}','${u.location||''}')">🔧 ${ms.soon} soon</span>`:'';
     const odo=getOdo(u.id);
     return`<div class="fleet-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:16px;font-weight:600">${u.id}</span><span class="tag">${typeName(u.type)}</span>${u.location?`<span class="loc-tag">${u.location}</span>`:''}${escWarn}${maintWarn}</div><div style="font-size:13px;color:var(--text-sec);margin-top:2px">${[u.make,u.year].filter(Boolean).join(' ')||'—'} ${badge}${odo.miles?` <span style="font-size:11px;color:var(--text-hint)">· ${odo.miles.toLocaleString()} mi</span>`:''}</div>${u.vin&&u.vin!='None'?`<div style="font-size:11px;color:var(--text-hint);margin-top:1px">VIN: ${u.vin}</div>`:''}</div><div class="fleet-actions"><button class="btn sm primary" onclick="startInspection(${i})">Inspect</button><button class="btn sm ${ms.due>0?'warning':''}" onclick="openMaintScreen(${i})">🔧 Maint</button><button class="btn sm" onclick="showQR(${i})">QR</button><button class="btn sm" onclick="openDocsPanel('${u.id}','${u.location||''}')">📁 Files</button></div></div>`;
   }).join('');
