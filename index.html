@@ -521,11 +521,7 @@ async function doForgotPassword(){
   else alert('Password reset email sent!');
 }
 
-// Global delegated clicks (work regardless of when DOM renders)
-document.addEventListener('click', function(e) {
-  if(e.target && e.target.id === 'signout-btn') doSignOut();
-  if(e.target && e.target.id === 'refresh-btn') doRefresh();
-});
+// click delegation moved to end of script
 
 async function doRefresh(){
   const rb=document.getElementById('refresh-btn');
@@ -1186,6 +1182,12 @@ window.addEventListener('load', function() {
   document.getElementById('reg-password').onkeydown = e => { if(e.key==='Enter') doRegister(); };
   // Refresh button uses document delegation since button is in hidden app-wrap at load time
   console.log('Events bound successfully');
+});
+// Global delegated clicks — placed at end so all functions are defined
+document.addEventListener('click', function(e) {
+  if(e.target && e.target.id === 'signout-btn') doSignOut();
+  if(e.target && e.target.id === 'refresh-btn') { console.log('Refresh clicked!'); doRefresh(); }
+  if(e.target && e.target.id === 'admin-btn') showScreen('screen-admin');
 });
 </script>
 </body>
