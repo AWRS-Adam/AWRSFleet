@@ -409,6 +409,9 @@ textarea{resize:vertical}
           <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
             <input type="checkbox" id="exp-maint" checked style="width:16px;height:16px"> Maintenance Due
           </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+            <input type="checkbox" id="exp-uninspected" checked style="width:16px;height:16px"> Uninspected Vehicles
+          </label>
         </div>
 
         <p style="font-size:13px;font-weight:600;margin-bottom:8px">Location</p>
@@ -1095,7 +1098,10 @@ function renderAdmin(){
 function renderAdminDefects(){
   const c=document.getElementById('admin-defects'),nd=document.getElementById('no-defects');
   const myDefects=isAdmin?defectLog:defectLog.filter(d=>!d.unitLocation||d.unitLocation===userLocation);
-  const open=myDefects.filter(d=>!d.resolved).sort((a,b)=>escalationLevel(b)-escalationLevel(a));
+  const open=myDefects.filter(d=>!d.resolved).sort((a,b)=>{
+    const lvDiff=escalationLevel(b)-escalationLevel(a);
+    return lvDiff!==0?lvDiff:(b.ts||0)-(a.ts||0);
+  });
   const res=myDefects.filter(d=>d.resolved).sort((a,b)=>b.resolvedTs-a.resolvedTs).slice(0,10);
   const all=[...open,...res];
   if(!all.length){c.innerHTML='';nd.style.display='block';return;}nd.style.display='none';
@@ -1126,7 +1132,7 @@ function renderAdminMaint(){
 function renderAdminHistory(){
   const h=document.getElementById('admin-history'),nh=document.getElementById('no-history');
   const myInsps=(isAdmin?inspections:inspections.filter(i=>!i.unitLocation||i.unitLocation===userLocation));
-  const sorted=[...myInsps].sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const sorted=[...myInsps].sort((a,b)=>(b.ts||0)-(a.ts||0)); // newest first
   if(!sorted.length){h.innerHTML='';nh.style.display='block';return;}nh.style.display='none';
   // Build lookup map for safe ID-based access
   window._inspMap={};sorted.forEach(r=>{if(r.id)window._inspMap[r.id]=r;});
@@ -1465,23 +1471,17 @@ function openInspDetail(r){
   // GPS Map
   if(r.gps&&r.gps.lat&&r.gps.lng){
     const lat=r.gps.lat,lng=r.gps.lng;
-    // Use static map image - works in all browsers without API key
-    const zoom=15;
-    const tileSize=256;
-    const mapW=560;const mapH=220;
-    const staticMapUrl=`https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=${zoom}&size=${mapW}x${mapH}&markers=${lat},${lng},red-pushpin`;
     html+=`<div style="margin-bottom:16px">
       <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin-bottom:8px">GPS Location</p>
-      <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" style="display:block;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:8px">
-        <img src="${staticMapUrl}" 
-          style="width:100%;height:220px;object-fit:cover;display:block"
-          onerror="this.parentElement.innerHTML='<div style=\'padding:16px;text-align:center;background:var(--bg);border-radius:var(--radius)\'><div style=\'font-size:24px;margin-bottom:8px\'>📍</div><div style=\'font-size:14px;font-weight:600\'>${lat}, ${lng}</div><div style=\'font-size:12px;color:var(--text-sec);margin-top:4px\'>Tap to open in Google Maps</div></div>'"
-          alt="Map: ${lat}, ${lng}">
+      <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" 
+         style="display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-decoration:none;color:var(--text);margin-bottom:8px">
+        <div style="font-size:32px">📍</div>
+        <div>
+          <div style="font-weight:600;font-size:14px">${lat}, ${lng}</div>
+          <div style="font-size:12px;color:var(--text-sec);margin-top:2px">Tap to open in Google Maps</div>
+        </div>
+        <div style="margin-left:auto;color:var(--blue);font-size:13px;font-weight:500">Open →</div>
       </a>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" class="btn sm primary">🗺 Google Maps</a>
-        <a href="https://www.google.com/maps/@${lat},${lng},15z" target="_blank" class="btn sm">🛰 Street View</a>
-      </div>
     </div>`;
   }
 
@@ -1758,6 +1758,36 @@ function runExport(){
     csv+='\n';
   }
 
+  // Uninspected vehicles
+  if(document.getElementById('exp-uninspected')?.checked){
+    csv+='UNINSPECTED VEHICLES\n';
+    csv+='Unit ID,Location,Type,Make,Year,Last Inspection,Days Since Inspection,Technician\n';
+    getVisibleFleet().filter(u=>{
+      if(loc&&u.location!==loc) return false;
+      const last=inspections.filter(i=>i.unitId===u.id).sort((a,b)=>b.ts-a.ts)[0];
+      const hours=last?Math.floor((Date.now()-last.ts)/3600000):9999;
+      return hours>=12;
+    }).sort((a,b)=>{
+      const lastA=inspections.filter(i=>i.unitId===a.id).sort((x,y)=>y.ts-x.ts)[0];
+      const lastB=inspections.filter(i=>i.unitId===b.id).sort((x,y)=>y.ts-x.ts)[0];
+      return (lastA?lastA.ts:0)-(lastB?lastB.ts:0); // longest overdue first
+    }).forEach(u=>{
+      const last=inspections.filter(i=>i.unitId===u.id).sort((a,b)=>b.ts-a.ts)[0];
+      const days=last?Math.floor((Date.now()-last.ts)/86400000):null;
+      csv+=[
+        escCSV(u.id),
+        escCSV(u.location||''),
+        escCSV(typeName(u.type)),
+        escCSV(u.make||''),
+        escCSV(u.year||''),
+        escCSV(last?new Date(last.ts).toLocaleString():'Never'),
+        escCSV(days!==null?days:'N/A'),
+        escCSV(last?last.tech:'')
+      ].join(',')+'\n';
+    });
+    csv+='\n';
+  }
+
   if(!csv){alert('Please select at least one export type.');return;}
 
   // Download using data URI (more compatible)
@@ -1902,7 +1932,19 @@ function renderFleet(){
   const list=document.getElementById('fleet-list'),empty=document.getElementById('home-empty');
   const vf=getVisibleFleet();
   const locFilter=(document.getElementById('location-filter')?.value)||'';
-  let filtered=vf.filter(u=>{
+  // Sort: uninspected/overdue float to top, then by last inspection time
+  const sortedVf=[...vf].sort((a,b)=>{
+    const lastA=inspections.filter(x=>x.unitId===a.id).sort((x,y)=>y.ts-x.ts)[0];
+    const lastB=inspections.filter(x=>x.unitId===b.id).sort((x,y)=>y.ts-x.ts)[0];
+    const hoursA=lastA?Math.floor((Date.now()-lastA.ts)/3600000):9999;
+    const hoursB=lastB?Math.floor((Date.now()-lastB.ts)/3600000):9999;
+    const dueA=hoursA>=12?1:0;
+    const dueB=hoursB>=12?1:0;
+    if(dueA!==dueB) return dueB-dueA; // overdue first
+    return hoursB-hoursA; // longest overdue first
+  });
+
+  let filtered=sortedVf.filter(u=>{
     if(activeFilter==='van'&&u.type!=='van')return false;
     if(activeFilter==='heavy'&&u.type!=='heavy')return false;
     if(activeFilter==='trailer'&&u.type!=='trailer')return false;
@@ -1924,23 +1966,24 @@ function renderFleet(){
   updateFilterCounts();
   if(!filtered.length){list.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
   list.innerHTML=filtered.map(u=>{
-    const i=vf.indexOf(u);
+    const i=getVisibleFleet().indexOf(u);
     const last=inspections.filter(x=>x.unitId===u.id).sort((a,b)=>b.ts-a.ts)[0];
     const openD=defectLog.filter(d=>d.unitId===u.id&&!d.resolved);
     const hoursSinceInsp=last?Math.floor((Date.now()-last.ts)/3600000):999;
     const inspDue=hoursSinceInsp>=12;
+    const daysSinceInsp=last?Math.floor((Date.now()-last.ts)/86400000):null;
     const badge=last?(
       openD.length?`<span class="badge defect" style="cursor:pointer" onclick="event.stopPropagation();openDefectDetail('${u.id}')">⚠ ${openD.length} open defect${openD.length>1?'s':''}</span>`:
-      inspDue?`<span class="badge pending" style="cursor:pointer" title="Last inspected ${hoursSinceInsp}h ago">⏱ Inspection due</span>`:
+      inspDue?`<span class="badge pending" title="Last inspected ${hoursSinceInsp}h ago">⏱ Due ${daysSinceInsp>0?daysSinceInsp+'d':'today'}</span>`:
       last.defects&&last.defects.length?`<span class="badge resolved" style="cursor:pointer" onclick="event.stopPropagation();openDefectDetail('${u.id}')">✓ All resolved</span>`:
-      `<span class="badge ok">✓ Passed ${hoursSinceInsp}h ago</span>`
-    ):`<span class="badge pending">Not inspected</span>`;
+      `<span class="badge ok">✓ Passed</span>`
+    ):`<span class="badge pending">⏱ Never inspected</span>`;
     const maxEsc=openD.reduce((m,d)=>Math.max(m,escalationLevel(d)),-1);
     const escWarn=maxEsc>=0?`<span class="esc-pill ${ESCALATION_LEVELS[maxEsc].cls}">${ESCALATION_LEVELS[maxEsc].label}</span>`:'';
     const ms=unitMaintSummary(u.id,u.type);
     const maintWarn=ms.due>0?`<span class="maint-pill-due" style="cursor:pointer" onclick="event.stopPropagation();openMaintDetail('${u.id}','${u.location||''}')">🔧 ${ms.due} due</span>`:ms.soon>0?`<span class="maint-pill-soon" style="cursor:pointer" onclick="event.stopPropagation();openMaintDetail('${u.id}','${u.location||''}')">🔧 ${ms.soon} soon</span>`:'';
     const odo=getOdo(u.id);
-    return`<div class="fleet-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:16px;font-weight:600">${u.id}</span><span class="tag">${typeName(u.type)}</span>${u.location?`<span class="loc-tag">${u.location}</span>`:''}${escWarn}${maintWarn}</div><div style="font-size:13px;color:var(--text-sec);margin-top:2px">${[u.make,u.year].filter(Boolean).join(' ')||'—'} ${badge}${odo.miles?` <span style="font-size:11px;color:var(--text-hint)">· ${odo.miles.toLocaleString()} mi</span>`:''}</div>${u.vin&&u.vin!='None'?`<div style="font-size:11px;color:var(--text-hint);margin-top:1px">VIN: ${u.vin}</div>`:''}</div><div class="fleet-actions"><button class="btn sm primary" onclick="startInspection(${i})">Inspect</button><button class="btn sm ${ms.due>0?'warning':''}" onclick="openMaintScreen(${i})">🔧 Maint</button><button class="btn sm" onclick="showQR(${i})">QR</button><button class="btn sm" onclick="openDocsPanel('${u.id}','${u.location||''}')">📁 Files</button></div></div>`;
+    return`<div class="fleet-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:16px;font-weight:600">${u.id}</span><span class="tag">${typeName(u.type)}</span>${u.location?`<span class="loc-tag">${u.location}</span>`:''}${escWarn}${maintWarn}</div><div style="font-size:13px;color:var(--text-sec);margin-top:2px">${[u.make,u.year].filter(Boolean).join(' ')||'—'} ${badge}${odo.miles?` <span style="font-size:11px;color:var(--text-hint)">· ${odo.miles.toLocaleString()} mi</span>`:''}</div>${u.vin&&u.vin!='None'?`<div style="font-size:11px;color:var(--text-hint);margin-top:1px">VIN: ${u.vin}</div>`:''}</div><div class="fleet-actions"><button class="btn sm primary" onclick="startInspection(${i})">Inspect</button><button class="btn sm ${ms.due>0?'warning':''}" onclick="openMaintScreen(${i})">🔧 Maint</button><button class="btn sm" onclick="showQR(${i})">QR</button><button class="btn sm" onclick="openDocsPanel('${u.id}','${u.location||''}')">📁 Files</button>${isAdmin?`<button class="btn sm" onclick="relocateUnit('${u.id}')">📍 Move</button>`:''}</div></div>`;
   }).join('');
 }
 
@@ -1987,6 +2030,22 @@ function resolveDefectFromCard(logId, unitId){
   renderFleet();updateOverdueBadge();
   // Reopen the modal with updated data
   setTimeout(()=>showUnitDefects(unitId),100);
+}
+
+function relocateUnit(unitId){
+  const u=fleet.find(f=>f.id===unitId);
+  if(!u){alert('Unit not found.');return;}
+  const locs=['NY1','WCC','CT1','FL1','GA1','MD1','NJ1','OpCo','MO1','MO2','IL1','IN1'];
+  const current=u.location||'None';
+  const newLoc=prompt(`Move ${unitId} from ${current} to:
+
+${locs.join(', ')}`,current);
+  if(!newLoc||newLoc===current) return;
+  if(!locs.includes(newLoc)){alert('Invalid location. Choose from: '+locs.join(', '));return;}
+  u.location=newLoc;
+  sbSaveSettings();
+  renderFleet();
+  alert(`✓ ${unitId} moved to ${newLoc}`);
 }
 
 function addUnit(){
