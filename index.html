@@ -1165,6 +1165,8 @@ function openDefectDetail(unitId){
       const photos=d.photos&&d.photos.length?d.photos:[];
       const emailAddr=lv>=0?getEscEmail(d.unitLocation,lv):'';
       const emailBtn=emailAddr?`<a href="mailto:${emailAddr}?subject=${encodeURIComponent('Defect: '+d.unitId+' — '+d.item)}" class="btn sm" style="margin-right:6px">📧 Email ${ESCALATION_LEVELS[lv].label}</a>`:'';
+      const si=inspections.find(i=>i.id===d.inspectionId)||inspections.filter(i=>i.unitId===d.unitId).sort((a,b)=>Math.abs(a.ts-d.ts)-Math.abs(b.ts-d.ts))[0];
+      const viewBtn=si?`<button class="btn sm" onclick="openInspById('${si.id}')">🔍 View Inspection</button>`:'';
       html+=`<div style="background:var(--bg);border-radius:var(--radius);padding:14px;margin-bottom:10px;border-left:3px solid ${lv>=3?'var(--purple)':lv>=2?'var(--red)':lv>=1?'var(--orange)':'var(--amber)'}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
           <div style="font-weight:600;font-size:14px">${d.item}</div>
@@ -1173,10 +1175,7 @@ function openDefectDetail(unitId){
         <div style="font-size:13px;color:var(--text-sec);margin-bottom:4px">${d.section}${d.note?' · '+d.note:''}</div>
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px">Reported by ${d.tech} · ${new Date(d.ts).toLocaleString()}</div>
         ${photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${photos.map(p=>`<img src="${p.url||p}" style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer" onclick="openPhotoModal('${p.url||p}')">`).join('')}</div>`:''}
-        <div style="display:flex;gap:6px;flex-wrap:wrap">${emailBtn}<button class="btn sm success" onclick="resolveFromDetail('${d.logId}','${unitId}')">✓ Mark Resolved</button>${(()=>{
-          const si=inspections.find(i=>i.id===d.inspectionId)||inspections.filter(i=>i.unitId===d.unitId).sort((a,b)=>Math.abs(a.ts-d.ts)-Math.abs(b.ts-d.ts))[0];
-          return si?`<button class="btn sm" onclick="openInspById('${si.id}')">🔍 View Inspection</button>`:'';
-        })()}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${emailBtn}<button class="btn sm success" onclick="resolveFromDetail('${d.logId}','${unitId}')">✓ Mark Resolved</button>${viewBtn}</div>
       </div>`;
     });
   } else {
