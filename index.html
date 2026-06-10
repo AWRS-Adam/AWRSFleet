@@ -974,11 +974,16 @@ function renderMaintDetail(unitId){
 
 // ─── DEFECT LOG ───────────────────────────────────────────────────────────────
 function syncDefectLog(){
+  // Build set of logIds already in defectLog (from Supabase load)
+  const existingIds=new Set(defectLog.map(l=>l.logId));
   inspections.forEach((rec)=>{
+    if(!rec||!rec.defects) return;
     rec.defects.forEach((d,di)=>{
       const logId=rec.id+'-'+di;
-      if(!defectLog.find(l=>l.logId===logId)){
+      // Only add if not already in defectLog from Supabase
+      if(!existingIds.has(logId)){
         defectLog.push({logId,inspectionId:rec.id,unitId:rec.unitId,unitLocation:rec.unitLocation||'',unitType:rec.unitType,tech:rec.tech,ts:rec.ts,section:d.section,item:d.item,note:d.note||'',photos:d.photos||[],resolved:false,resolvedBy:'',resolvedTs:null,resolvedNote:''});
+        existingIds.add(logId);
       }
     });
   });
