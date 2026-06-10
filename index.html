@@ -1064,11 +1064,16 @@ function openInspDetail(r){
   if(r.defects&&r.defects.length){
     html+=`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin-bottom:8px">Defects (${r.defects.length})</p>`;
     r.defects.forEach(d=>{
-      const photos=d.photos&&d.photos.length?d.photos:[];
+      // Check both defect.photos and matching item in r.items
+      let photos=d.photos&&d.photos.length?d.photos:[];
+      if(!photos.length&&r.items){
+        const match=r.items.find(it=>it.item===d.item&&it.section===d.section);
+        if(match&&match.photos&&match.photos.length) photos=match.photos;
+      }
       html+=`<div style="padding:10px 0;border-bottom:1px solid var(--border)">
         <div style="font-weight:600;font-size:14px">${d.item}</div>
         <div style="font-size:13px;color:var(--text-sec)">${d.section}${d.note?' · '+d.note:''}</div>
-        ${photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${photos.map(p=>`<img src="${p.url}" style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer" onclick="openPhotoModal('${p.url}')">`).join('')}</div>`:''}
+        ${photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${photos.map(p=>`<img src="${p.url||p}" style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer" onclick="openPhotoModal('${p.url||p}')">`).join('')}</div>`:'<div style="font-size:12px;color:var(--text-hint);margin-top:4px">No photos</div>'}
       </div>`;
     });
     html+='<div style="margin-bottom:16px"></div>';
@@ -1188,7 +1193,7 @@ function runExport(){
         escCSV(i.odo||''),
         escCSV(i.defects?i.defects.length:0),
         escCSV(i.notes||'')
-      ].join(',')+='\n';
+      ].join(',')+"\n";
     });
     csv+='\n';
   }
@@ -1217,7 +1222,7 @@ function runExport(){
         escCSV(d.resolved?'Resolved':'Open'),
         escCSV(d.resolvedBy||''),
         escCSV(d.resolvedNote||'')
-      ].join(',')+='\n';
+      ].join(',')+"\n";
     });
     csv+='\n';
   }
@@ -1239,7 +1244,7 @@ function runExport(){
           escCSV(last?last.miles:''),
           escCSV(s.milesLeft<0?Math.abs(s.milesLeft):''),
           escCSV(s.daysLeft<0?Math.abs(s.daysLeft):'')
-        ].join(',')+='\n';
+        ].join(',')+"\n";
       });
     });
     csv+='\n';

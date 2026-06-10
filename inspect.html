@@ -287,8 +287,9 @@ async function submitInspection() {
         allItems.push({ section: sec, item, result: 'unchecked', note: '', photos: [] });
       } else {
         const note = checked.value === 'defect' ? document.getElementById('note-' + key).value : '';
-        allItems.push({ section: sec, item, result: checked.value, note, photos: [] });
-        if (checked.value === 'defect') defects.push({ section: sec, item, note, photos: [] });
+        const itemPhotos = (inspectionPhotos[key]||[]).map(p=>({url:p.url,path:p.path||'',pending:p.pending||false}));
+        allItems.push({ section: sec, item, result: checked.value, note, photos: itemPhotos });
+        if (checked.value === 'defect') defects.push({ section: sec, item, note, photos: itemPhotos });
       }
     });
   }
