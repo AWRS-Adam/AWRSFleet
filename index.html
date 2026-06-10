@@ -227,9 +227,17 @@ textarea{resize:vertical}
     </div>
   </div>
   <div class="content">
-    <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="search-input" placeholder="Search by unit ID, VIN, make…" oninput="renderFleet()">
+    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+      <div class="search-wrap" style="flex:1;margin-bottom:0">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search by unit ID, VIN, make…" oninput="renderFleet()">
+      </div>
+      <select id="location-filter" onchange="renderFleet()" style="padding:9px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:14px;min-width:80px">
+        <option value="">All</option>
+        <option>NY1</option><option>WCC</option><option>CT1</option><option>FL1</option>
+        <option>GA1</option><option>MD1</option><option>NJ1</option><option>OpCo</option>
+        <option>MO1</option><option>MO2</option><option>IL1</option><option>IN1</option>
+      </select>
     </div>
     <div class="filter-row">
       <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
@@ -931,11 +939,12 @@ function syncDefectLog(){
 function escalationLevel(e){if(e.resolved)return -1;const d=Math.floor((Date.now()-e.ts)/86400000);let lv=-1;ESCALATION_LEVELS.forEach((l,i)=>{if(d>=l.days)lv=i;});return lv;}
 function openDefects(){return defectLog.filter(d=>!d.resolved);}
 function updateOverdueBadge(){
-  const esc=openDefects().filter(d=>escalationLevel(d)>=0).length;
-  const due=allMaintDue();const total=esc+due;
+  const openD=openDefects();
+  const esc=openD.filter(d=>escalationLevel(d)>=0).length;
+  const due=allMaintDue();const total=openD.length+due;
   const b=document.getElementById('overdue-badge');if(b){b.textContent=total;b.style.display=total>0?'inline-block':'none';}
   const mt=document.getElementById('maint-tab-count');if(mt){mt.textContent=due;mt.style.display=due>0?'inline-block':'none';}
-  const dt=document.getElementById('defect-tab-count');if(dt){dt.textContent=esc;dt.style.display=esc>0?'inline-block':'none';}
+  const dt=document.getElementById('defect-tab-count');if(dt){dt.textContent=openD.length;dt.style.display=openD.length>0?'inline-block':'none';}
 }
 function resolveDefect(logId){
   const note=prompt('Resolution note (optional):','');if(note===null)return;
@@ -1451,11 +1460,13 @@ function renderFleet(){
   const q=(document.getElementById('search-input').value||'').toLowerCase();
   const list=document.getElementById('fleet-list'),empty=document.getElementById('home-empty');
   const vf=getVisibleFleet();
+  const locFilter=(document.getElementById('location-filter')?.value)||'';
   let filtered=vf.filter(u=>{
     if(activeFilter==='van'&&u.type!=='van')return false;
     if(activeFilter==='heavy'&&u.type!=='heavy')return false;
     if(activeFilter==='trailer'&&u.type!=='trailer')return false;
     if(activeFilter==='maint-due'){const ms=unitMaintSummary(u.id,u.type);if(!ms.due)return false;}
+    if(locFilter&&u.location!==locFilter)return false;
     const searchStr=[u.id,u.make,u.vin,u.location,u.year,typeName(u.type)].join(' ').toLowerCase();
     if(q&&!q.trim().split(/\s+/).every(t=>searchStr.includes(t)))return false;
     return true;
@@ -1465,7 +1476,14 @@ function renderFleet(){
     const i=vf.indexOf(u);
     const last=inspections.filter(x=>x.unitId===u.id).sort((a,b)=>b.ts-a.ts)[0];
     const openD=defectLog.filter(d=>d.unitId===u.id&&!d.resolved);
-    const badge=last?(openD.length?`<span class="badge defect" style="cursor:pointer" onclick="event.stopPropagation();openDefectDetail('${u.id}')">⚠ ${openD.length} open defect${openD.length>1?'s':''}</span>`:(last.defects&&last.defects.length?`<span class="badge resolved" style="cursor:pointer" onclick="event.stopPropagation();openDefectDetail('${u.id}')">✓ All resolved</span>`:`<span class="badge ok">✓ Passed</span>`)):`<span class="badge pending">Not inspected</span>`;
+    const hoursSinceInsp=last?Math.floor((Date.now()-last.ts)/3600000):999;
+    const inspDue=hoursSinceInsp>=12;
+    const badge=last?(
+      openD.length?`<span class="badge defect" style="cursor:pointer" onclick="event.stopPropagation();openDefectDetail('${u.id}')">⚠ ${openD.length} open defect${openD.length>1?'s':''}</span>`:
+      inspDue?`<span class="badge pending" style="cursor:pointer" title="Last inspected ${hoursSinceInsp}h ago">⏱ Inspection due</span>`:
+      last.defects&&last.defects.length?`<span class="badge resolved" style="cursor:pointer" onclick="event.stopPropagation();openDefectDetail('${u.id}')">✓ All resolved</span>`:
+      `<span class="badge ok">✓ Passed ${hoursSinceInsp}h ago</span>`
+    ):`<span class="badge pending">Not inspected</span>`;
     const maxEsc=openD.reduce((m,d)=>Math.max(m,escalationLevel(d)),-1);
     const escWarn=maxEsc>=0?`<span class="esc-pill ${ESCALATION_LEVELS[maxEsc].cls}">${ESCALATION_LEVELS[maxEsc].label}</span>`:'';
     const ms=unitMaintSummary(u.id,u.type);
