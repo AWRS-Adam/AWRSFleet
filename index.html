@@ -424,7 +424,14 @@ textarea{resize:vertical}
         <p style="font-size:14px;font-weight:500;margin-bottom:6px">👑 Admin Accounts</p>
         <p style="font-size:13px;color:var(--text-sec);margin-bottom:8px">Admin emails are set directly in the app code. Current admins:</p>
         <div id="admin-email-list" style="font-size:13px;margin-bottom:10px"></div>
-        <p style="font-size:12px;color:var(--text-hint)">To add an admin, edit the <code>ADMIN_EMAILS</code> array in the HTML file and re-upload to GitHub.</p>
+        <p style="font-size:12px;color:var(--text-hint);margin-bottom:10px">Hardcoded admins (require HTML edit to change). Add dynamic admins below — no upload needed.</p>
+        <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
+        <p style="font-size:13px;font-weight:600;margin-bottom:8px">Add Admin by Email</p>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="email" id="new-admin-email" placeholder="email@alloywheel.com" style="flex:1;padding:8px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);font-size:14px">
+          <button class="btn sm primary" onclick="addDynamicAdmin()">+ Add</button>
+        </div>
+        <div id="dynamic-admin-list"></div>
         <hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
         <p style="font-size:14px;font-weight:500;margin-bottom:4px">⚙️ Supabase Tips</p>
         <p style="font-size:13px;color:var(--text-sec)">To let users sign in immediately without email confirmation, go to your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/providers" target="_blank" style="color:var(--blue)">Supabase Auth settings</a> and disable <strong>"Confirm email"</strong>.</p>
@@ -468,6 +475,21 @@ textarea{resize:vertical}
     <div style="margin-top:10px;display:flex;justify-content:flex-end">
       <button class="btn sm" onclick="document.getElementById('photo-modal').style.display='none'">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- Defect Detail Panel -->
+<div id="defect-detail-modal" style="display:none;position:fixed;inset:0;z-index:200">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.5)" onclick="closeDefectDetail()"></div>
+  <div style="position:absolute;top:0;right:0;width:min(600px,100vw);height:100vh;background:var(--surface);overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.2);display:flex;flex-direction:column">
+    <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1">
+      <div>
+        <div style="font-size:16px;font-weight:600" id="ddd-title">Open Defects</div>
+        <div style="font-size:12px;color:var(--text-sec)" id="ddd-sub"></div>
+      </div>
+      <button class="btn sm" onclick="closeDefectDetail()">✕ Close</button>
+    </div>
+    <div style="padding:16px;flex:1" id="ddd-body"></div>
   </div>
 </div>
 
@@ -650,7 +672,10 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     currentUser=session.user;
     const meta=currentUser.user_metadata||{};
     userProfile={name:meta.full_name||currentUser.email.split('@')[0],email:currentUser.email,location:meta.location||'',role:meta.role||'gm'};
-    isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes(currentUser.email.toLowerCase());
+    // Check both hardcoded list and Supabase-stored admins
+    const sbAdmins=(window._supabaseAdmins||[]).map(e=>e.toLowerCase());
+    const allAdmins=[...ADMIN_EMAILS.map(e=>e.toLowerCase()),...sbAdmins];
+    isAdmin=allAdmins.includes(currentUser.email.toLowerCase());
     userLocation=isAdmin?null:(userProfile.location||null);
     console.log('Auth:', currentUser.email, 'isAdmin:', isAdmin, 'location:', userLocation);
     document.getElementById('auth-wrap').style.display='none';
@@ -1111,6 +1136,73 @@ function closeInspDetail(){
   document.body.style.overflow='';
 }
 
+function openDefectDetail(unitId){
+  const u=fleet.find(f=>f.id===unitId);
+  const openD=defectLog.filter(d=>d.unitId===unitId&&!d.resolved);
+  const resolvedD=defectLog.filter(d=>d.unitId===unitId&&d.resolved).sort((a,b)=>b.resolvedTs-a.resolvedTs).slice(0,5);
+  
+  document.getElementById('ddd-title').textContent='Defects — '+unitId;
+  document.getElementById('ddd-sub').textContent=(u?typeName(u.type)+' · '+(u.location||''):'')+(openD.length?' · '+openD.length+' open':'');
+
+  let html='';
+
+  if(openD.length){
+    html+=`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin-bottom:12px">Open Defects (${openD.length})</p>`;
+    openD.sort((a,b)=>escalationLevel(b)-escalationLevel(a)).forEach(d=>{
+      const days=Math.floor((Date.now()-d.ts)/86400000);
+      const lv=escalationLevel(d);
+      const pill=lv>=0?`<span class="esc-pill ${ESCALATION_LEVELS[lv].cls}">${ESCALATION_LEVELS[lv].label}</span>`:`<span class="esc-pill esc-1">Pending</span>`;
+      const photos=d.photos&&d.photos.length?d.photos:[];
+      const emailAddr=lv>=0?getEscEmail(d.unitLocation,lv):'';
+      const emailBtn=emailAddr?`<a href="mailto:${emailAddr}?subject=${encodeURIComponent('Defect: '+d.unitId+' — '+d.item)}" class="btn sm" style="margin-right:6px">📧 Email ${ESCALATION_LEVELS[lv].label}</a>`:'';
+      html+=`<div style="background:var(--bg);border-radius:var(--radius);padding:14px;margin-bottom:10px;border-left:3px solid ${lv>=3?'var(--purple)':lv>=2?'var(--red)':lv>=1?'var(--orange)':'var(--amber)'}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+          <div style="font-weight:600;font-size:14px">${d.item}</div>
+          <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">${pill}<span style="font-size:12px;color:var(--text-hint)">${days}d</span></div>
+        </div>
+        <div style="font-size:13px;color:var(--text-sec);margin-bottom:4px">${d.section}${d.note?' · '+d.note:''}</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px">Reported by ${d.tech} · ${new Date(d.ts).toLocaleString()}</div>
+        ${photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${photos.map(p=>`<img src="${p.url||p}" style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer" onclick="openPhotoModal('${p.url||p}')">`).join('')}</div>`:''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${emailBtn}<button class="btn sm success" onclick="resolveFromDetail('${d.logId}','${unitId}')">✓ Mark Resolved</button></div>
+      </div>`;
+    });
+  } else {
+    html+=`<div class="alert-box success">✓ No open defects for this unit.</div>`;
+  }
+
+  if(resolvedD.length){
+    html+=`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin:16px 0 8px">Recently Resolved</p>`;
+    resolvedD.forEach(d=>{
+      html+=`<div style="padding:10px 0;border-bottom:1px solid var(--border);opacity:.7">
+        <div style="font-size:13px;font-weight:600">${d.item} <span class="badge resolved" style="font-size:11px">✓</span></div>
+        <div style="font-size:12px;color:var(--text-sec)">${d.section}</div>
+        <div style="font-size:11px;color:var(--text-hint)">Resolved by ${d.resolvedBy||'—'}${d.resolvedNote?' · '+d.resolvedNote:''}</div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('ddd-body').innerHTML=html;
+  document.getElementById('defect-detail-modal').style.display='block';
+  document.body.style.overflow='hidden';
+}
+
+function closeDefectDetail(){
+  document.getElementById('defect-detail-modal').style.display='none';
+  document.body.style.overflow='';
+}
+
+function resolveFromDetail(logId, unitId){
+  const note=prompt('Resolution note (optional):','')||'';
+  const by=prompt('Your name:','')||userProfile?.name||'Unknown';
+  const e=defectLog.find(d=>d.logId===logId);
+  if(!e) return;
+  e.resolved=true;e.resolvedBy=by;e.resolvedTs=Date.now();e.resolvedNote=note;
+  sbSaveDefectLog();
+  renderFleet();updateOverdueBadge();
+  // Refresh the panel
+  openDefectDetail(unitId);
+}
+
 // ─── EXPORT ──────────────────────────────────────────────────────────────────
 function setExpRange(days){
   const to=new Date();
@@ -1270,10 +1362,46 @@ function runExport(){
   }
 }
 
+async function addDynamicAdmin(){
+  const email=document.getElementById('new-admin-email').value.trim().toLowerCase();
+  if(!email||!email.includes('@')){alert('Please enter a valid email.');return;}
+  const current=window._supabaseAdmins||[];
+  if(current.includes(email)){alert('Already an admin.');return;}
+  const updated=[...current,email];
+  window._supabaseAdmins=updated;
+  // Save to Supabase
+  await fetch(`${SUPABASE_URL}/rest/v1/fi_settings`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify({key:'admin_emails',value:updated})
+  });
+  document.getElementById('new-admin-email').value='';
+  renderAdminEmailList();
+  alert('✓ '+email+' added as admin. They will have admin access on next sign in.');
+}
+
+async function removeDynamicAdmin(email){
+  if(!confirm('Remove '+email+' as admin?')) return;
+  const updated=(window._supabaseAdmins||[]).filter(e=>e!==email);
+  window._supabaseAdmins=updated;
+  await fetch(`${SUPABASE_URL}/rest/v1/fi_settings`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify({key:'admin_emails',value:updated})
+  });
+  renderAdminEmailList();
+}
+
 function renderAdminEmailList(){
   const el=document.getElementById('admin-email-list');
   if(!el) return;
-  el.innerHTML=ADMIN_EMAILS.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0"><span class="role-badge role-admin">Admin</span> <span>${e}</span></div>`).join('');
+  const hardcoded=ADMIN_EMAILS.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span class="role-badge role-admin">Hardcoded</span><span style="flex:1;font-size:13px">${e}</span></div>`).join('');
+  const dynamic=document.getElementById('dynamic-admin-list');
+  if(dynamic){
+    const dbAdmins=(window._supabaseAdmins||[]);
+    dynamic.innerHTML=dbAdmins.length?dbAdmins.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span class="role-badge" style="background:var(--green-light);color:var(--green);border:1px solid var(--green-mid)">Dynamic</span><span style="flex:1;font-size:13px">${e}</span><button class="btn sm danger" onclick="removeDynamicAdmin('${e}')" style="padding:3px 8px;font-size:12px">Remove</button></div>`).join(''):'<div style="font-size:13px;color:var(--text-hint);padding:6px 0">No dynamic admins yet.</div>';
+  }
+  el.innerHTML=hardcoded;
 }
 function isMaintEnabled(id){
   return!(maintIntervals[id]&&maintIntervals[id].disabled);
@@ -1336,7 +1464,7 @@ function renderFleet(){
     const i=vf.indexOf(u);
     const last=inspections.filter(x=>x.unitId===u.id).sort((a,b)=>b.ts-a.ts)[0];
     const openD=defectLog.filter(d=>d.unitId===u.id&&!d.resolved);
-    const badge=last?(openD.length?`<span class="badge defect" style="cursor:pointer" onclick="showUnitDefects('${u.id}')">⚠ ${openD.length} open defect${openD.length>1?'s':''}</span>`:(last.defects&&last.defects.length?`<span class="badge defect" style="cursor:pointer;opacity:.6" onclick="showUnitDefects('${u.id}')">⚠ ${last.defects.length} defect${last.defects.length>1?'s':''} (resolved)</span>`:`<span class="badge ok">✓ Passed</span>`)):`<span class="badge pending">Not inspected</span>`;
+    const badge=last?(openD.length?`<span class="badge defect" style="cursor:pointer" onclick="event.stopPropagation();openDefectDetail('${u.id}')">⚠ ${openD.length} open defect${openD.length>1?'s':''}</span>`:(last.defects&&last.defects.length?`<span class="badge resolved" style="cursor:pointer" onclick="event.stopPropagation();openDefectDetail('${u.id}')">✓ All resolved</span>`:`<span class="badge ok">✓ Passed</span>`)):`<span class="badge pending">Not inspected</span>`;
     const maxEsc=openD.reduce((m,d)=>Math.max(m,escalationLevel(d)),-1);
     const escWarn=maxEsc>=0?`<span class="esc-pill ${ESCALATION_LEVELS[maxEsc].cls}">${ESCALATION_LEVELS[maxEsc].label}</span>`:'';
     const ms=unitMaintSummary(u.id,u.type);
