@@ -1473,15 +1473,24 @@ function openInspDetail(r){
     const lat=r.gps.lat,lng=r.gps.lng;
     html+=`<div style="margin-bottom:16px">
       <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin-bottom:8px">GPS Location</p>
-      <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" 
-         style="display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-decoration:none;color:var(--text);margin-bottom:8px">
-        <div style="font-size:32px">📍</div>
-        <div>
-          <div style="font-weight:600;font-size:14px">${lat}, ${lng}</div>
-          <div style="font-size:12px;color:var(--text-sec);margin-top:2px">Tap to open in Google Maps</div>
-        </div>
-        <div style="margin-left:auto;color:var(--blue);font-size:13px;font-weight:500">Open →</div>
-      </a>
+      <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:8px;position:relative;height:220px;background:var(--bg)">
+        <iframe
+          src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed"
+          width="100%" height="220" style="border:none;display:block;position:absolute;top:0;left:0"
+          allowfullscreen loading="lazy"
+          onerror="this.style.display='none'">
+        </iframe>
+        <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank"
+           style="display:flex;align-items:center;gap:12px;padding:16px;text-decoration:none;color:var(--text);height:100%;box-sizing:border-box">
+          <div style="font-size:32px">📍</div>
+          <div>
+            <div style="font-weight:600;font-size:14px">${lat}, ${lng}</div>
+            <div style="font-size:12px;color:var(--text-sec);margin-top:2px">Tap to open in Google Maps</div>
+          </div>
+          <div style="margin-left:auto;color:var(--blue);font-size:13px;font-weight:500">Open →</div>
+        </a>
+      </div>
+      <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" class="btn sm primary">🗺 Open in Google Maps</a>
     </div>`;
   }
 
