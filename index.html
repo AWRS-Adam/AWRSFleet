@@ -478,7 +478,7 @@ textarea{resize:vertical}
 </div>
 
 <!-- Photo Lightbox Modal -->
-<div id="photo-modal" class="modal-overlay" style="display:none" onclick="document.getElementById('photo-modal').style.display='none'">
+<div id="photo-modal" class="modal-overlay" style="display:none;z-index:300" onclick="document.getElementById('photo-modal').style.display='none'">
   <div class="modal" style="max-width:600px" onclick="event.stopPropagation()">
     <img id="photo-modal-img" class="photo-modal-img" src="" alt="Inspection photo">
     <div style="margin-top:10px;display:flex;justify-content:flex-end">
@@ -725,9 +725,10 @@ sb.auth.onAuthStateChange(async(event,session)=>{
 async function sendDefectEmail(defect, inspection){
   try{
     const loc=defect.unitLocation||'';
-    const toEmail=getEscEmail(loc, 0); // Manager gets it instantly
+    const toEmail=getEscEmail(loc, 0);
+    console.log('Sending defect email to:',toEmail,'for location:',loc);
     if(!toEmail){
-      console.log('No manager email set for location:',loc);
+      console.warn('No manager email set for location:',loc,'— set it in Admin > Settings > Escalation');
       return;
     }
     const res=await fetch(EDGE_FUNCTION_URL,{
@@ -739,13 +740,13 @@ async function sendDefectEmail(defect, inspection){
       },
       body:JSON.stringify({
         defect:{...defect, toEmail, escalationLevel:0},
-        inspection
+        inspection:{odo:inspection.odo,gps:inspection.gps}
       })
     });
     const data=await res.json();
-    console.log('Email sent:',data);
+    console.log('Email result:',data);
   }catch(e){
-    console.warn('Email send failed:',e.message);
+    console.error('Email send failed:',e.message);
   }
 }
 
