@@ -1173,7 +1173,10 @@ function openDefectDetail(unitId){
         <div style="font-size:13px;color:var(--text-sec);margin-bottom:4px">${d.section}${d.note?' · '+d.note:''}</div>
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px">Reported by ${d.tech} · ${new Date(d.ts).toLocaleString()}</div>
         ${photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${photos.map(p=>`<img src="${p.url||p}" style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer" onclick="openPhotoModal('${p.url||p}')">`).join('')}</div>`:''}
-        <div style="display:flex;gap:6px;flex-wrap:wrap">${emailBtn}<button class="btn sm success" onclick="resolveFromDetail('${d.logId}','${unitId}')">✓ Mark Resolved</button></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${emailBtn}<button class="btn sm success" onclick="resolveFromDetail('${d.logId}','${unitId}')">✓ Mark Resolved</button>${(()=>{
+          const si=inspections.find(i=>i.id===d.inspectionId)||inspections.filter(i=>i.unitId===d.unitId).sort((a,b)=>Math.abs(a.ts-d.ts)-Math.abs(b.ts-d.ts))[0];
+          return si?`<button class="btn sm" onclick="openInspById('${si.id}')">🔍 View Inspection</button>`:'';
+        })()}</div>
       </div>`;
     });
   } else {
