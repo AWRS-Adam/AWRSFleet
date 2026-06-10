@@ -1057,9 +1057,38 @@ async function renderAdminUsers(){
   }catch(e){c.innerHTML=`<div class="card"><p style="font-size:13px;color:var(--text-sec)">View and manage users in your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/users" target="_blank" style="color:var(--blue)">Supabase Auth dashboard →</a></p></div>`;}
 }
 // ─── INSPECTION DETAIL PANEL ─────────────────────────────────────────────────
-function openInspById(id){
-  const r=window._inspMap&&window._inspMap[id];
-  if(!r){console.warn('Inspection not found:',id);return;}
+async function openInspById(id){
+  if(!id){console.warn('openInspById called with no id');return;}
+  // Try local map first
+  let r=window._inspMap&&window._inspMap[id];
+  if(!r) r=inspections.find(i=>i.id===id);
+  if(!r){
+    console.log('Fetching inspection from Supabase:',id);
+    try{
+      const url=`${SUPABASE_URL}/rest/v1/fi_inspections?select=id,data&id=eq.${id}`;
+      console.log('Fetch URL:',url);
+      const res=await fetch(url,{
+        headers:{
+          'apikey':SUPABASE_KEY,
+          'Authorization':`Bearer ${SUPABASE_KEY}`,
+          'Accept':'application/json'
+        }
+      });
+      console.log('Fetch status:',res.status);
+      const rows=await res.json();
+      console.log('Fetch result:',rows);
+      if(rows&&rows.length&&rows[0].data) r=rows[0].data;
+    }catch(e){console.error('Fetch error:',e);}
+  }
+  if(!r){
+    // Last resort: find by unit and closest time from defectLog
+    const defect=defectLog.find(d=>d.inspectionId===id);
+    if(defect){
+      r=inspections.filter(i=>i.unitId===defect.unitId)
+        .sort((a,b)=>Math.abs(a.ts-defect.ts)-Math.abs(b.ts-defect.ts))[0];
+    }
+  }
+  if(!r){alert('Could not load inspection. Try clicking the refresh button and try again.');return;}
   openInspDetail(r);
 }
 
