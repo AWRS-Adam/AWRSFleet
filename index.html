@@ -733,12 +733,21 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     currentUser=session.user;
     const meta=currentUser.user_metadata||{};
     userProfile={name:meta.full_name||currentUser.email.split('@')[0],email:currentUser.email,location:meta.location||'',role:meta.role||'gm'};
+    // Load dynamic admins from Supabase FIRST before checking isAdmin
+    try{
+      const adminRes=await fetch(`${SUPABASE_URL}/rest/v1/fi_settings?key=eq.admin_emails&select=value`,{
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Accept':'application/json'}
+      });
+      const adminRows=await adminRes.json();
+      if(adminRows&&adminRows.length&&adminRows[0].value) window._supabaseAdmins=adminRows[0].value||[];
+    }catch(e){console.warn('Could not load dynamic admins:',e);}
+    
     // Check both hardcoded list and Supabase-stored admins
     const sbAdmins=(window._supabaseAdmins||[]).map(e=>e.toLowerCase());
     const allAdmins=[...ADMIN_EMAILS.map(e=>e.toLowerCase()),...sbAdmins];
     isAdmin=allAdmins.includes(currentUser.email.toLowerCase());
     userLocation=isAdmin?null:(userProfile.location||null);
-    console.log('Auth:', currentUser.email, 'isAdmin:', isAdmin, 'location:', userLocation);
+    console.log('Auth:', currentUser.email, 'isAdmin:', isAdmin, 'location:', userLocation, 'dynamic admins:', sbAdmins);
     document.getElementById('auth-wrap').style.display='none';
     document.getElementById('app-wrap').style.display='block';
     document.getElementById('topbar-location').textContent=isAdmin?'Admin — All Locations':(userProfile.name+' · '+(userLocation||''));
