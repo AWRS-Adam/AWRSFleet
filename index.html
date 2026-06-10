@@ -523,8 +523,9 @@ async function doForgotPassword(){
 
 // click delegation moved to end of script
 
-async function fetchFromSupabase(table, select){
-  const url=`${SUPABASE_URL}/rest/v1/${table}?select=${select}&order=created_at.desc&limit=500`;
+async function fetchFromSupabase(table, select, orderBy=''){
+  const order=orderBy?`&order=${orderBy}`:'';
+  const url=`${SUPABASE_URL}/rest/v1/${table}?select=${select}${order}&limit=1000`;
   const res=await fetch(url,{
     headers:{
       'apikey': SUPABASE_KEY,
@@ -543,7 +544,7 @@ async function doRefresh(){
   try{
     console.log('Starting refresh via REST API...');
     const [insps,defects,odo]=await Promise.all([
-      fetchFromSupabase('fi_inspections','id,data'),
+      fetchFromSupabase('fi_inspections','id,data','created_at.desc'),
       fetchFromSupabase('fi_defect_log','log_id,data'),
       fetchFromSupabase('fi_odometer','unit_id,data'),
     ]);
