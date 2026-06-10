@@ -1157,11 +1157,29 @@ window.addEventListener('load', function() {
   document.getElementById('forgot-btn').onclick = doForgotPassword;
   document.getElementById('login-password').onkeydown = e => { if(e.key==='Enter') doLogin(); };
   document.getElementById('reg-password').onkeydown = e => { if(e.key==='Enter') doRegister(); };
-  // Refresh button
+  // Refresh button - defined inline to avoid hoisting issues
   const rb = document.getElementById('refresh-btn');
   if(rb) rb.onclick = async () => {
     rb.textContent = '⟳'; rb.disabled = true;
-    await refreshData();
+    try{
+      showSyncStatus('⟳ Refreshing…','loading');
+      const [inspsRes,defectsRes,odoRes]=await Promise.all([
+        sb.from('fi_inspections').select('id,data').order('created_at',{ascending:false}).limit(500),
+        sb.from('fi_defect_log').select('log_id,data'),
+        sb.from('fi_odometer').select('unit_id,data'),
+      ]);
+      if(inspsRes.data){
+        inspections=inspsRes.data.map(r=>r.data).filter(Boolean);
+        console.log('Refreshed inspections:',inspections.length, inspections[0]?.unitId);
+      }
+      if(defectsRes.data) defectLog=defectsRes.data.map(r=>r.data).filter(d=>d&&d.logId);
+      if(odoRes.data){odometerData={};odoRes.data.forEach(r=>{odometerData[r.unit_id]=r.data;});}
+      syncDefectLog();renderFleet();updateOverdueBadge();
+      showSyncStatus('✓ Refreshed','ok');
+    }catch(e){
+      console.error('Refresh error:',e);
+      showSyncStatus('⚠ Failed','error');
+    }
     rb.textContent = '↻'; rb.disabled = false;
   };
   console.log('Events bound successfully');
