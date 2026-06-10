@@ -532,21 +532,22 @@ async function doRefresh(){
   if(rb){rb.textContent='⟳';rb.disabled=true;}
   showSyncStatus('⟳ Refreshing…','loading');
   try{
-    const [inspsRes,defectsRes,odoRes]=await Promise.all([
-      sb.from('fi_inspections').select('id,data').order('created_at',{ascending:false}).limit(500),
-      sb.from('fi_defect_log').select('log_id,data'),
-      sb.from('fi_odometer').select('unit_id,data'),
-    ]);
+    console.log('Starting refresh...');
+    const inspsRes=await sb.from('fi_inspections').select('id,data').order('created_at',{ascending:false}).limit(500);
+    console.log('Inspections result:',inspsRes.error?'ERROR:'+inspsRes.error.message:inspsRes.data?.length+' rows');
+    const defectsRes=await sb.from('fi_defect_log').select('log_id,data');
+    console.log('Defects result:',defectsRes.error?'ERROR:'+defectsRes.error.message:defectsRes.data?.length+' rows');
+    const odoRes=await sb.from('fi_odometer').select('unit_id,data');
     if(inspsRes.data){
       inspections=inspsRes.data.map(r=>r.data).filter(Boolean);
-      console.log('Refreshed:',inspections.length,'inspections, first unitId:',inspections[0]?.unitId);
+      console.log('Loaded inspections:',inspections.length,'first:',JSON.stringify(inspections[0]?.unitId));
     }
     if(defectsRes.data) defectLog=defectsRes.data.map(r=>r.data).filter(d=>d&&d.logId);
     if(odoRes.data){odometerData={};odoRes.data.forEach(r=>{odometerData[r.unit_id]=r.data;});}
     syncDefectLog();renderFleet();updateOverdueBadge();
     showSyncStatus('✓ Refreshed','ok');
   }catch(e){
-    console.error('Refresh error:',e);
+    console.error('Refresh error:',e.message,e.stack);
     showSyncStatus('⚠ Failed','error');
   }
   if(rb){rb.textContent='↻';rb.disabled=false;}
