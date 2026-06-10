@@ -294,7 +294,7 @@ async function submitInspection() {
     });
   }
   const odoVal2 = parseInt(document.getElementById('insp-odo').value) || 0;
-  if (!odoVal2) { alert('Odometer reading is required.'); document.getElementById('insp-odo').focus(); return; }
+  if (!odoVal2) { alert('Odometer reading is required before submitting.'); document.getElementById('insp-odo').focus(); return; }
   if (unchecked.length > 0) { alert('Please answer all ' + unchecked.length + ' remaining checklist item(s) before submitting.'); return; }
 
   // Show summary IMMEDIATELY - no waiting
