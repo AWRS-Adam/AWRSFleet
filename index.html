@@ -819,7 +819,8 @@ function maintStatus(unitId,itemId){
   const milesSince=currentMiles-lastMiles,daysSince=lastTs?Math.floor((Date.now()-lastTs)/86400000):9999;
   const milesLeft=intMiles-milesSince,daysLeft=intDays-daysSince;
   const pct=Math.max(Math.min(milesSince/intMiles,1),Math.min(daysSince/intDays,1));
-  const skipMiles=intMiles===0;  // 0 means miles-based check not applicable
+  const skipMiles=intMiles===0;
+  if(maintIntervals[itemId]&&maintIntervals[itemId].disabled) return {status:'disabled',milesLeft:0,daysLeft:0,milesSince:0,daysSince:0,pct:0,intMiles,intDays};
   let status='ok';if((!skipMiles&&milesLeft<=0)||daysLeft<=0)status='due';else if((!skipMiles&&milesLeft<=500)||daysLeft<=14)status='soon';
   return{status,milesLeft,daysLeft,milesSince,daysSince,pct,intMiles,intDays};
 }
@@ -986,10 +987,11 @@ function renderAdminHistory(){
   const myInsps=(isAdmin?inspections:inspections.filter(i=>!i.unitLocation||i.unitLocation===userLocation));
   const sorted=[...myInsps].sort((a,b)=>(b.ts||0)-(a.ts||0));
   if(!sorted.length){h.innerHTML='';nh.style.display='block';return;}nh.style.display='none';
+  // Build lookup map for safe ID-based access
+  window._inspMap={};sorted.forEach(r=>{if(r.id)window._inspMap[r.id]=r;});
   h.innerHTML=sorted.map((r,idx)=>{
     const photoCount=r.defects?r.defects.reduce((n,d)=>n+(d.photos?d.photos.length:0),0):0;
-    const safeId=encodeURIComponent(r.id||idx);
-    return`<div class="history-card" style="cursor:pointer" onclick="openInspDetail(${JSON.stringify(r).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')})">
+    return`<div class="history-card" style="cursor:pointer" onclick="openInspById('${(r.id||'').replace(/'/g,'')}')">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <strong>${r.unitId}</strong>${r.unitLocation?`<span class="loc-tag">${r.unitLocation}</span>`:''}
@@ -1020,6 +1022,12 @@ async function renderAdminUsers(){
   }catch(e){c.innerHTML=`<div class="card"><p style="font-size:13px;color:var(--text-sec)">View and manage users in your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/users" target="_blank" style="color:var(--blue)">Supabase Auth dashboard →</a></p></div>`;}
 }
 // ─── INSPECTION DETAIL PANEL ─────────────────────────────────────────────────
+function openInspById(id){
+  const r=window._inspMap&&window._inspMap[id];
+  if(!r){console.warn('Inspection not found:',id);return;}
+  openInspDetail(r);
+}
+
 function openInspDetail(r){
   const modal=document.getElementById('insp-detail-modal');
   document.getElementById('idd-title').textContent='Unit '+r.unitId+(r.unitLocation?' — '+r.unitLocation:'');
@@ -1239,15 +1247,22 @@ function runExport(){
 
   if(!csv){alert('Please select at least one export type.');return;}
 
-  // Download
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
+  // Download using data URI (more compatible)
   const dateStr=new Date().toISOString().split('T')[0];
   const locStr=loc||'AllLocations';
-  a.href=url;a.download=`AWRS_Fleet_Export_${locStr}_${dateStr}.csv`;
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const filename=`AWRS_Fleet_Export_${locStr}_${dateStr}.csv`;
+  try{
+    const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=filename;a.style.display='none';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+  }catch(e){
+    // Fallback: open in new tab
+    const dataUri='data:text/csv;charset=utf-8,'+encodeURIComponent('﻿'+csv);
+    window.open(dataUri,'_blank');
+  }
 }
 
 function renderAdminEmailList(){
@@ -1255,13 +1270,32 @@ function renderAdminEmailList(){
   if(!el) return;
   el.innerHTML=ADMIN_EMAILS.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0"><span class="role-badge role-admin">Admin</span> <span>${e}</span></div>`).join('');
 }
+function isMaintEnabled(id){
+  return!(maintIntervals[id]&&maintIntervals[id].disabled);
+}
+
 function renderIntervalSettings(){
   const c=document.getElementById('interval-settings');
   const vehicleItems=MAINT_ITEMS.filter(m=>m.types.includes('van'));
   const trailerItems=MAINT_ITEMS.filter(m=>m.types.includes('trailer'));
-  const hdr=`<div class="grid3" style="margin-bottom:8px;font-size:12px;color:var(--text-sec)"><div>Item</div><div>Every N miles</div><div>Every N days</div></div>`;
-  const row=m=>`<div class="grid3" style="margin-bottom:10px;align-items:center"><div style="font-size:13px;font-weight:500">${m.icon} ${m.name}</div><input type="number" id="int-${m.id}-miles" value="${getInterval(m.id,'miles')}" min="0" step="50" style="padding:6px 8px;font-size:13px"${m.defaultMiles===0?' placeholder="N/A"':''}><input type="number" id="int-${m.id}-days" value="${getInterval(m.id,'days')}" min="1" style="padding:6px 8px;font-size:13px"></div>`;
+  const hdr=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 40px;gap:8px;margin-bottom:8px;font-size:12px;color:var(--text-sec)"><div>Item</div><div>Every N miles</div><div>Every N days</div><div>On</div></div>`;
+  const row=m=>{
+    const enabled=isMaintEnabled(m.id);
+    return`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 40px;gap:8px;margin-bottom:10px;align-items:center;opacity:${enabled?1:.4}">
+      <div style="font-size:13px;font-weight:500">${m.icon} ${m.name}</div>
+      <input type="number" id="int-${m.id}-miles" value="${getInterval(m.id,'miles')}" min="0" step="50" style="padding:6px 8px;font-size:13px"${m.defaultMiles===0?' placeholder="N/A"':''} ${enabled?'':'disabled'}>
+      <input type="number" id="int-${m.id}-days" value="${getInterval(m.id,'days')}" min="1" style="padding:6px 8px;font-size:13px" ${enabled?'':'disabled'}>
+      <input type="checkbox" id="int-${m.id}-enabled" ${enabled?'checked':''} style="width:18px;height:18px;cursor:pointer" onchange="toggleMaintItem('${m.id}')">
+    </div>`;
+  };
   c.innerHTML=`<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin-bottom:8px">Vans & Box Trucks</p>${hdr}${vehicleItems.map(row).join('')}<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin:12px 0 8px">Trailers</p>${hdr}${trailerItems.map(row).join('')}`;
+}
+
+function toggleMaintItem(id){
+  if(!maintIntervals[id]) maintIntervals[id]={};
+  const enabled=document.getElementById('int-'+id+'-enabled').checked;
+  maintIntervals[id].disabled=!enabled;
+  renderIntervalSettings();
 }
 function saveIntervalSettings(){
   MAINT_ITEMS.forEach(m=>{if(!maintIntervals[m.id])maintIntervals[m.id]={};maintIntervals[m.id].miles=parseInt(document.getElementById(`int-${m.id}-miles`).value)||m.defaultMiles;maintIntervals[m.id].days=parseInt(document.getElementById(`int-${m.id}-days`).value)||m.defaultDays;});
