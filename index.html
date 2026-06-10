@@ -1456,6 +1456,34 @@ function saveEscalationSettings(){
 // ─── FLEET ────────────────────────────────────────────────────────────────────
 function typeName(t){return t==='van'?'Van/Pickup':t==='trailer'?'Trailer':'Box Truck (10k+)';}
 function setFilter(f){activeFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.filter===f));renderFleet();}
+
+function updateFilterCounts(){
+  const vf=getVisibleFleet();
+  const locFilter=(document.getElementById('location-filter')?.value)||'';
+  const base=locFilter?vf.filter(u=>u.location===locFilter):vf;
+
+  const counts={
+    all: base.length,
+    van: base.filter(u=>u.type==='van').length,
+    heavy: base.filter(u=>u.type==='heavy').length,
+    trailer: base.filter(u=>u.type==='trailer').length,
+    'maint-due': base.filter(u=>{const ms=unitMaintSummary(u.id,u.type);return ms.due>0;}).length,
+    'not-inspected': base.filter(u=>{
+      const last=inspections.filter(x=>x.unitId===u.id).sort((a,b)=>b.ts-a.ts)[0];
+      return !last||Math.floor((Date.now()-last.ts)/3600000)>=12;
+    }).length,
+    'has-defects': base.filter(u=>defectLog.filter(d=>d.unitId===u.id&&!d.resolved).length>0).length,
+  };
+
+  document.querySelectorAll('.filter-btn').forEach(b=>{
+    const f=b.dataset.filter;
+    if(f&&counts[f]!==undefined){
+      const n=counts[f];
+      b.innerHTML=b.innerHTML.replace(/ <span class="filter-count">.*?<\/span>/,'');
+      b.innerHTML+=` <span class="filter-count" style="font-size:11px;background:rgba(0,0,0,.1);border-radius:20px;padding:1px 6px;margin-left:2px">${n}</span>`;
+    }
+  });
+}
 function renderFleet(){
   const q=(document.getElementById('search-input').value||'').toLowerCase();
   const list=document.getElementById('fleet-list'),empty=document.getElementById('home-empty');
@@ -1480,6 +1508,7 @@ function renderFleet(){
     if(q&&!q.trim().split(/\s+/).every(t=>searchStr.includes(t)))return false;
     return true;
   });
+  updateFilterCounts();
   if(!filtered.length){list.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
   list.innerHTML=filtered.map(u=>{
     const i=vf.indexOf(u);
