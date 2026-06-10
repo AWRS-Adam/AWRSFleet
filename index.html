@@ -521,10 +521,36 @@ async function doForgotPassword(){
   else alert('Password reset email sent!');
 }
 
-// Global delegated click for sign out (works regardless of when DOM renders)
+// Global delegated clicks (work regardless of when DOM renders)
 document.addEventListener('click', function(e) {
   if(e.target && e.target.id === 'signout-btn') doSignOut();
+  if(e.target && e.target.id === 'refresh-btn') doRefresh();
 });
+
+async function doRefresh(){
+  const rb=document.getElementById('refresh-btn');
+  if(rb){rb.textContent='⟳';rb.disabled=true;}
+  showSyncStatus('⟳ Refreshing…','loading');
+  try{
+    const [inspsRes,defectsRes,odoRes]=await Promise.all([
+      sb.from('fi_inspections').select('id,data').order('created_at',{ascending:false}).limit(500),
+      sb.from('fi_defect_log').select('log_id,data'),
+      sb.from('fi_odometer').select('unit_id,data'),
+    ]);
+    if(inspsRes.data){
+      inspections=inspsRes.data.map(r=>r.data).filter(Boolean);
+      console.log('Refreshed:',inspections.length,'inspections, first unitId:',inspections[0]?.unitId);
+    }
+    if(defectsRes.data) defectLog=defectsRes.data.map(r=>r.data).filter(d=>d&&d.logId);
+    if(odoRes.data){odometerData={};odoRes.data.forEach(r=>{odometerData[r.unit_id]=r.data;});}
+    syncDefectLog();renderFleet();updateOverdueBadge();
+    showSyncStatus('✓ Refreshed','ok');
+  }catch(e){
+    console.error('Refresh error:',e);
+    showSyncStatus('⚠ Failed','error');
+  }
+  if(rb){rb.textContent='↻';rb.disabled=false;}
+}
 
 async function doSignOut(){
   try {
@@ -1157,31 +1183,7 @@ window.addEventListener('load', function() {
   document.getElementById('forgot-btn').onclick = doForgotPassword;
   document.getElementById('login-password').onkeydown = e => { if(e.key==='Enter') doLogin(); };
   document.getElementById('reg-password').onkeydown = e => { if(e.key==='Enter') doRegister(); };
-  // Refresh button - defined inline to avoid hoisting issues
-  const rb = document.getElementById('refresh-btn');
-  if(rb) rb.onclick = async () => {
-    rb.textContent = '⟳'; rb.disabled = true;
-    try{
-      showSyncStatus('⟳ Refreshing…','loading');
-      const [inspsRes,defectsRes,odoRes]=await Promise.all([
-        sb.from('fi_inspections').select('id,data').order('created_at',{ascending:false}).limit(500),
-        sb.from('fi_defect_log').select('log_id,data'),
-        sb.from('fi_odometer').select('unit_id,data'),
-      ]);
-      if(inspsRes.data){
-        inspections=inspsRes.data.map(r=>r.data).filter(Boolean);
-        console.log('Refreshed inspections:',inspections.length, inspections[0]?.unitId);
-      }
-      if(defectsRes.data) defectLog=defectsRes.data.map(r=>r.data).filter(d=>d&&d.logId);
-      if(odoRes.data){odometerData={};odoRes.data.forEach(r=>{odometerData[r.unit_id]=r.data;});}
-      syncDefectLog();renderFleet();updateOverdueBadge();
-      showSyncStatus('✓ Refreshed','ok');
-    }catch(e){
-      console.error('Refresh error:',e);
-      showSyncStatus('⚠ Failed','error');
-    }
-    rb.textContent = '↻'; rb.disabled = false;
-  };
+  // Refresh button uses document delegation since button is in hidden app-wrap at load time
   console.log('Events bound successfully');
 });
 </script>
