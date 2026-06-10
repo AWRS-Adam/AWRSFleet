@@ -705,8 +705,11 @@ async function doSignOut(){
   } catch(e) {
     console.warn('signOut error:', e);
   }
-  // Force reload regardless
-  window.location.href = window.location.pathname;
+  // Clear all storage
+  try { localStorage.clear(); } catch(e) {}
+  try { sessionStorage.clear(); } catch(e) {}
+  // Force hard reload bypassing cache
+  window.location.href = window.location.pathname + '?signout=' + Date.now();
 }
 
 // ─── AUTH STATE ───────────────────────────────────────────────────────────────
