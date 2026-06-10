@@ -324,6 +324,27 @@ async function submitInspection() {
   saveInBackground(record, odoVal);
 }
 
+async function saveInspectionRecord(record){
+  // Save inspection JSON to Fleet-Photos/{location}/{unitId}/{inspectionId}/inspection.json
+  try{
+    const location=record.unitLocation||'unknown';
+    const path=`${location}/${record.unitId}/${record.id}/inspection.json`;
+    const url=`${SUPABASE_URL}/storage/v1/object/Fleet-Photos/${path}`;
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{
+        'Authorization':`Bearer ${SUPABASE_KEY}`,
+        'apikey':SUPABASE_KEY,
+        'Content-Type':'application/json',
+        'x-upsert':'true'
+      },
+      body:JSON.stringify(record,null,2)
+    });
+    if(res.ok) console.log('Inspection record saved to storage:',path);
+    else console.warn('Failed to save record:',await res.text());
+  }catch(e){console.warn('saveInspectionRecord error:',e);}
+}
+
 async function saveInBackground(record, odoVal) {
   try {
     await sb.from('fi_inspections').upsert({ id: record.id, data: record }, { onConflict: 'id' });

@@ -487,6 +487,23 @@ textarea{resize:vertical}
   </div>
 </div>
 
+<!-- Documents Panel -->
+<div id="docs-modal" style="display:none;position:fixed;inset:0;z-index:200">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.5)" onclick="closeDocsPanel()"></div>
+  <div style="position:absolute;top:0;right:0;width:min(600px,100vw);height:100vh;background:var(--surface);overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.2);display:flex;flex-direction:column">
+    <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1">
+      <div>
+        <div style="font-size:16px;font-weight:600" id="docs-title">Inspection Records</div>
+        <div style="font-size:12px;color:var(--text-sec)" id="docs-sub"></div>
+      </div>
+      <button class="btn sm" onclick="closeDocsPanel()">✕ Close</button>
+    </div>
+    <div style="padding:16px;flex:1" id="docs-body">
+      <div class="empty-state">Loading…</div>
+    </div>
+  </div>
+</div>
+
 <!-- Defect Detail Panel -->
 <div id="defect-detail-modal" style="display:none;position:fixed;inset:0;z-index:200">
   <div style="position:absolute;inset:0;background:rgba(0,0,0,.5)" onclick="closeDefectDetail()"></div>
@@ -1056,6 +1073,134 @@ async function renderAdminUsers(){
     c.innerHTML=`<div class="card"><p style="font-size:14px;font-weight:500;margin-bottom:12px">Registered Users (${data.users.length})</p>${data.users.map(u=>{const meta=u.user_metadata||{};return`<div class="user-card"><div><div style="font-weight:500">${meta.full_name||u.email}</div><div style="font-size:13px;color:var(--text-sec)">${u.email}</div><div style="font-size:12px;color:var(--text-hint);margin-top:2px">Location: ${meta.location||'—'} · Joined: ${new Date(u.created_at).toLocaleDateString()}</div></div><span class="role-badge ${ADMIN_EMAILS.includes(u.email)?'role-admin':'role-gm'}">${ADMIN_EMAILS.includes(u.email)?'Admin':'GM'}</span></div>`;}).join('')}</div>`;
   }catch(e){c.innerHTML=`<div class="card"><p style="font-size:13px;color:var(--text-sec)">View and manage users in your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/users" target="_blank" style="color:var(--blue)">Supabase Auth dashboard →</a></p></div>`;}
 }
+// ─── DOCUMENTS PANEL ─────────────────────────────────────────────────────────
+async function openDocsPanel(unitId, location){
+  const modal=document.getElementById('docs-modal');
+  document.getElementById('docs-title').textContent='📁 '+unitId+' — Inspection Records';
+  document.getElementById('docs-sub').textContent=(location||'')+' · Loading files…';
+  document.getElementById('docs-body').innerHTML='<div class="empty-state">⟳ Loading…</div>';
+  modal.style.display='block';
+  document.body.style.overflow='hidden';
+
+  try{
+    // List files in Fleet-Photos/{location}/{unitId}/
+    const path=`${location||'unknown'}/${unitId}`;
+    const url=`${SUPABASE_URL}/storage/v1/object/list/Fleet-Photos/${path}`;
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{
+        'apikey':SUPABASE_KEY,
+        'Authorization':`Bearer ${SUPABASE_KEY}`,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({limit:1000,offset:0,sortBy:{column:'created_at',order:'desc'}})
+    });
+    const folders=await res.json();
+    console.log('Folders for',path,':',folders);
+
+    if(!folders||!folders.length){
+      // Try listing inspection folders directly
+      const res2=await fetch(`${SUPABASE_URL}/storage/v1/object/list/Fleet-Photos`,{
+        method:'POST',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'},
+        body:JSON.stringify({limit:1000,offset:0,prefix:`${path}/`,sortBy:{column:'created_at',order:'desc'}})
+      });
+      const files=await res2.json();
+      renderDocsFiles(unitId,location,files||[]);
+      return;
+    }
+    renderDocsFolders(unitId,location,folders);
+  }catch(e){
+    console.error('Docs error:',e);
+    document.getElementById('docs-body').innerHTML=`<div class="alert-box danger">Failed to load files: ${e.message}</div>`;
+  }
+}
+
+function renderDocsFolders(unitId,location,folders){
+  const sub=document.getElementById('docs-sub');
+  const body=document.getElementById('docs-body');
+  
+  // Filter to inspection folders (named INS-...)
+  const insFolders=folders.filter(f=>f.name&&(f.name.startsWith('INS-')||f.id));
+  sub.textContent=(location||'')+' · '+(insFolders.length||folders.length)+' inspection record(s)';
+
+  if(!folders.length){
+    body.innerHTML=`<div class="empty-state">No inspection records saved yet.<br><span style="font-size:12px;color:var(--text-hint)">Records are saved when inspections are submitted.</span></div>`;
+    return;
+  }
+
+  body.innerHTML=folders.map(f=>{
+    const name=f.name||f.id||'Unknown';
+    const isInsp=name.startsWith('INS-');
+    const date=f.created_at?new Date(f.created_at).toLocaleString():'';
+    const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/Fleet-Photos/${location||'unknown'}/${unitId}/${name}/inspection.json`;
+    return`<div class="card" style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div>
+          <div style="font-weight:600;font-size:14px">${isInsp?'📋':'📄'} ${name}</div>
+          ${date?`<div style="font-size:12px;color:var(--text-sec)">${date}</div>`:''}
+        </div>
+        <div style="display:flex;gap:6px">
+          ${isInsp?`<button class="btn sm" onclick="openInspById('${name}')">🔍 View</button>`:''}
+          <a href="${publicUrl}" target="_blank" class="btn sm">⬇ Download</a>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDocsFiles(unitId,location,files){
+  const sub=document.getElementById('docs-sub');
+  const body=document.getElementById('docs-body');
+  
+  // Group files by inspection ID
+  const groups={};
+  files.forEach(f=>{
+    if(!f.name) return;
+    const parts=f.name.split('/');
+    const inspId=parts.length>1?parts[parts.length-2]:parts[0];
+    if(!groups[inspId]) groups[inspId]=[];
+    groups[inspId].push(f);
+  });
+
+  const groupKeys=Object.keys(groups);
+  sub.textContent=(location||'')+' · '+groupKeys.length+' inspection record(s)';
+
+  if(!groupKeys.length){
+    body.innerHTML=`<div class="empty-state">No inspection records saved yet.</div>`;
+    return;
+  }
+
+  body.innerHTML=groupKeys.map(inspId=>{
+    const groupFiles=groups[inspId];
+    const photos=groupFiles.filter(f=>f.name&&!f.name.endsWith('.json'));
+    const jsonFile=groupFiles.find(f=>f.name&&f.name.endsWith('.json'));
+    const insp=inspections.find(i=>i.id===inspId);
+    const dateStr=insp?new Date(insp.ts).toLocaleString():(jsonFile?.created_at?new Date(jsonFile.created_at).toLocaleString():'');
+    const tech=insp?insp.tech:'';
+    const hasDefects=insp&&insp.defects&&insp.defects.length>0;
+    return`<div class="card" style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+        <div>
+          <div style="font-weight:600;font-size:14px">📋 ${inspId}</div>
+          <div style="font-size:12px;color:var(--text-sec)">${dateStr}${tech?' · '+tech:''}</div>
+          ${hasDefects?`<span class="badge defect" style="font-size:11px">⚠ ${insp.defects.length} defect${insp.defects.length>1?'s':''}</span>`:`<span class="badge ok" style="font-size:11px">✓ Passed</span>`}
+        </div>
+        <button class="btn sm primary" onclick="openInspById('${inspId}')">🔍 View</button>
+      </div>
+      ${photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap">${photos.map(p=>{
+        const pUrl=`${SUPABASE_URL}/storage/v1/object/public/Fleet-Photos/${p.name}`;
+        return`<img src="${pUrl}" style="width:60px;height:60px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer" onclick="openPhotoModal('${pUrl}')">`;
+      }).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function closeDocsPanel(){
+  document.getElementById('docs-modal').style.display='none';
+  document.body.style.overflow='';
+}
+
 // ─── INSPECTION DETAIL PANEL ─────────────────────────────────────────────────
 async function openInspById(id){
   if(!id){console.warn('openInspById called with no id');return;}
@@ -1583,7 +1728,7 @@ function renderFleet(){
     const ms=unitMaintSummary(u.id,u.type);
     const maintWarn=ms.due>0?`<span class="maint-pill-due">🔧 ${ms.due} due</span>`:ms.soon>0?`<span class="maint-pill-soon">🔧 ${ms.soon} soon</span>`:'';
     const odo=getOdo(u.id);
-    return`<div class="fleet-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:16px;font-weight:600">${u.id}</span><span class="tag">${typeName(u.type)}</span>${u.location?`<span class="loc-tag">${u.location}</span>`:''}${escWarn}${maintWarn}</div><div style="font-size:13px;color:var(--text-sec);margin-top:2px">${[u.make,u.year].filter(Boolean).join(' ')||'—'} ${badge}${odo.miles?` <span style="font-size:11px;color:var(--text-hint)">· ${odo.miles.toLocaleString()} mi</span>`:''}</div>${u.vin&&u.vin!='None'?`<div style="font-size:11px;color:var(--text-hint);margin-top:1px">VIN: ${u.vin}</div>`:''}</div><div class="fleet-actions"><button class="btn sm primary" onclick="startInspection(${i})">Inspect</button><button class="btn sm ${ms.due>0?'warning':''}" onclick="openMaintScreen(${i})">🔧 Maint</button><button class="btn sm" onclick="showQR(${i})">QR</button></div></div>`;
+    return`<div class="fleet-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:16px;font-weight:600">${u.id}</span><span class="tag">${typeName(u.type)}</span>${u.location?`<span class="loc-tag">${u.location}</span>`:''}${escWarn}${maintWarn}</div><div style="font-size:13px;color:var(--text-sec);margin-top:2px">${[u.make,u.year].filter(Boolean).join(' ')||'—'} ${badge}${odo.miles?` <span style="font-size:11px;color:var(--text-hint)">· ${odo.miles.toLocaleString()} mi</span>`:''}</div>${u.vin&&u.vin!='None'?`<div style="font-size:11px;color:var(--text-hint);margin-top:1px">VIN: ${u.vin}</div>`:''}</div><div class="fleet-actions"><button class="btn sm primary" onclick="startInspection(${i})">Inspect</button><button class="btn sm ${ms.due>0?'warning':''}" onclick="openMaintScreen(${i})">🔧 Maint</button><button class="btn sm" onclick="showQR(${i})">QR</button><button class="btn sm" onclick="openDocsPanel('${u.id}','${u.location||''}')">📁 Files</button></div></div>`;
   }).join('');
 }
 
@@ -1723,6 +1868,18 @@ async function submitInspection(){
   if(odoVal>0)setOdo(u.id,odoVal,'inspection');
   const record={id:currentInspectionId,unitId:u.id,unitType:u.type,unitLocation:u.location,tech,odo:odoVal,notes:document.getElementById('insp-notes').value,ts:Date.now(),defects,items:allItems,gps:gpsData||null,submittedBy:currentUser?.email||''};
   inspections.push(record);syncDefectLog();
+  // Save JSON record to storage folder
+  (async()=>{
+    try{
+      const loc=u.location||'unknown';
+      const path=`${loc}/${u.id}/${record.id}/inspection.json`;
+      await fetch(`${SUPABASE_URL}/storage/v1/object/Fleet-Photos/${path}`,{
+        method:'POST',
+        headers:{'Authorization':`Bearer ${SUPABASE_KEY}`,'apikey':SUPABASE_KEY,'Content-Type':'application/json','x-upsert':'true'},
+        body:JSON.stringify(record,null,2)
+      });
+    }catch(e){console.warn('Record save error:',e);}
+  })();
   // Submit with timeout - show summary regardless after 8s
   try{
     const t=new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),8000));
