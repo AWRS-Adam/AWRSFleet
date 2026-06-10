@@ -1478,10 +1478,16 @@ function updateFilterCounts(){
   document.querySelectorAll('.filter-btn').forEach(b=>{
     const f=b.dataset.filter;
     if(f&&counts[f]!==undefined){
-      // Store original label on first run
-      if(!b.dataset.label) b.dataset.label=b.textContent.trim();
       const n=counts[f];
-      b.innerHTML=`${b.dataset.label} <span style="font-size:11px;background:rgba(0,0,0,.12);border-radius:20px;padding:1px 6px;margin-left:2px">${n}</span>`;
+      // Find or create count span
+      let span=b.querySelector('.fc');
+      if(!span){
+        span=document.createElement('span');
+        span.className='fc';
+        span.style.cssText='font-size:11px;background:rgba(0,0,0,.12);border-radius:20px;padding:1px 6px;margin-left:4px';
+        b.appendChild(span);
+      }
+      span.textContent=n;
     }
   });
 }
