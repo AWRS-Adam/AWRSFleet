@@ -6,6 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<meta name="version" content="1781059486">
 <title>AWRS Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script>
@@ -1683,6 +1684,22 @@ window.addEventListener('load', function() {
   // Refresh button uses document delegation since button is in hidden app-wrap at load time
   console.log('Events bound successfully');
 });
+// ─── AUTO UPDATE CHECK ───────────────────────────────────────────────────────
+// Check every 5 minutes if a new version is available and prompt user to reload
+const _currentVersion = document.querySelector('meta[name="version"]')?.content;
+setInterval(async()=>{
+  try{
+    const res=await fetch(window.location.href+'?_='+Date.now(),{cache:'no-store'});
+    const html=await res.text();
+    const match=html.match(/meta name="version" content="(\d+)"/);
+    if(match&&match[1]&&match[1]!==_currentVersion){
+      if(confirm('A new version of AWRS Fleet is available. Reload now?')){
+        window.location.reload(true);
+      }
+    }
+  }catch(e){}
+}, 300000); // every 5 minutes
+
 // Global delegated clicks — placed at end so all functions are defined
 document.addEventListener('click', function(e) {
   if(e.target && e.target.id === 'signout-btn') doSignOut();
