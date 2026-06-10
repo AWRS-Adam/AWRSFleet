@@ -646,7 +646,7 @@ async function doRefresh(){
   try{
     console.log('Starting refresh via REST API...');
     const [insps,defects,odo]=await Promise.all([
-      fetchFromSupabase('fi_inspections','id,data','created_at.desc'),
+      fetchFromSupabase('fi_inspections','id,data','created_at.desc',2000),
       fetchFromSupabase('fi_defect_log','log_id,data'),
       fetchFromSupabase('fi_odometer','unit_id,data'),
     ]);
@@ -1065,19 +1065,27 @@ async function openInspById(id){
   if(!r){
     console.log('Fetching inspection from Supabase:',id);
     try{
-      const url=`${SUPABASE_URL}/rest/v1/fi_inspections?select=id,data&id=eq.${id}`;
+      // Use RPC-style POST to avoid URL parsing issues with IDs containing dashes
+      const url=`${SUPABASE_URL}/rest/v1/fi_inspections?select=id,data&id=eq.${encodeURIComponent(id)}&limit=1`;
       console.log('Fetch URL:',url);
       const res=await fetch(url,{
+        method:'GET',
         headers:{
           'apikey':SUPABASE_KEY,
           'Authorization':`Bearer ${SUPABASE_KEY}`,
-          'Accept':'application/json'
+          'Accept':'application/json',
+          'Content-Type':'application/json'
         }
       });
-      console.log('Fetch status:',res.status);
-      const rows=await res.json();
-      console.log('Fetch result:',rows);
+      const text=await res.text();
+      console.log('Fetch status:',res.status,'body:',text.substring(0,200));
+      const rows=JSON.parse(text);
       if(rows&&rows.length&&rows[0].data) r=rows[0].data;
+      else if(rows&&rows.length&&!rows[0].data){
+        // data might be nested differently
+        console.log('Row structure:',Object.keys(rows[0]));
+        r=rows[0].data||rows[0];
+      }
     }catch(e){console.error('Fetch error:',e);}
   }
   if(!r){
@@ -1088,7 +1096,17 @@ async function openInspById(id){
         .sort((a,b)=>Math.abs(a.ts-defect.ts)-Math.abs(b.ts-defect.ts))[0];
     }
   }
-  if(!r){alert('Could not load inspection. Try clicking the refresh button and try again.');return;}
+  if(!r){
+    // Final fallback: find inspection for this unit around this time from defect
+    const d=defectLog.find(dl=>dl.inspectionId===id);
+    if(d){
+      const fallback=inspections.filter(i=>i.unitId===d.unitId)
+        .sort((a,b)=>Math.abs((a.ts||0)-(d.ts||0))-Math.abs((b.ts||0)-(d.ts||0)))[0];
+      if(fallback){openInspDetail(fallback);return;}
+    }
+    alert('Inspection not found. Click the ↻ refresh button then try again.');
+    return;
+  }
   openInspDetail(r);
 }
 
