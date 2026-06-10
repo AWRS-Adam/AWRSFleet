@@ -457,7 +457,7 @@ textarea{resize:vertical}
       </div>
       <div class="card">
         <p style="font-size:14px;font-weight:500;margin-bottom:12px">Escalation contacts by location</p>
-        <p style="font-size:13px;color:var(--text-sec);margin-bottom:16px">Unresolved defects escalate: <strong>Manager (Day 1) → Regional (Day 3) → Director (Day 7) → Executive (Day 14)</strong></p>
+        <p style="font-size:13px;color:var(--text-sec);margin-bottom:16px">Unresolved defects escalate: <strong>Manager (instantly) → Fleet Manager (Day 1+) → Regional (Day 3+) → Director (Day 7+)</strong></p>
         <div id="escalation-settings"></div>
         <button class="btn primary" style="margin-top:12px" onclick="saveEscalationSettings()">Save Contacts</button>
       </div>
@@ -542,6 +542,8 @@ const SUPABASE_URL = "https://tlqxcpybsrolgsglwehr.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRscXhjcHlic3JvbGdzZ2x3ZWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjAyMTMsImV4cCI6MjA5NjU5NjIxM30.C6RNumDgJz75IcijCDtVk94KbGKCcibcMduNAJPZa_s";
 // ─── ADMIN EMAILS ─────────────────────────────────────────────────────────────
 // Add any email addresses here that should have full admin access (all locations)
+const EDGE_FUNCTION_URL = 'https://tlqxcpybsrolgsglwehr.supabase.co/functions/v1/bright-task';
+
 const ADMIN_EMAILS = [
   "adamlipps@alloywheel.com",
   "georgediaz@alloywheel.com",
@@ -577,10 +579,10 @@ const MAINT_ITEMS = [
   {id:"gen_oil",    name:"Generator Oil Change",  icon:"⚡", defaultMiles:0,     defaultDays:90,  types:["trailer"]},
 ];
 const ESCALATION_LEVELS=[
-  {label:'Manager',   days:1,  cls:'esc-1'},
-  {label:'Regional',  days:3,  cls:'esc-2'},
-  {label:'Director',  days:7,  cls:'esc-3'},
-  {label:'Executive', days:14, cls:'esc-4'}
+  {label:'Manager',       days:0,  cls:'esc-1'},  // instant - day 0
+  {label:'Fleet Manager', days:1,  cls:'esc-2'},  // 1+ day
+  {label:'Regional',      days:3,  cls:'esc-3'},  // 3+ days
+  {label:'Director',      days:7,  cls:'esc-4'},  // 7+ days
 ];
 const LOCATIONS=['NY1','WCC','CT1','FL1','GA1','MD1','NJ1','OpCo','MO1','MO2','IL1','IN1'];
 const ITEMS={
@@ -718,6 +720,34 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     document.getElementById('loading-wrap').style.display='none';
   }
 });
+
+// ─── EMAIL NOTIFICATIONS ─────────────────────────────────────────────────────
+async function sendDefectEmail(defect, inspection){
+  try{
+    const loc=defect.unitLocation||'';
+    const toEmail=getEscEmail(loc, 0); // Manager gets it instantly
+    if(!toEmail){
+      console.log('No manager email set for location:',loc);
+      return;
+    }
+    const res=await fetch(EDGE_FUNCTION_URL,{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':`Bearer ${SUPABASE_KEY}`,
+        'apikey':SUPABASE_KEY
+      },
+      body:JSON.stringify({
+        defect:{...defect, toEmail, escalationLevel:0},
+        inspection
+      })
+    });
+    const data=await res.json();
+    console.log('Email sent:',data);
+  }catch(e){
+    console.warn('Email send failed:',e.message);
+  }
+}
 
 // ─── SYNC STATUS ──────────────────────────────────────────────────────────────
 let _syncTimer=null;
@@ -1654,7 +1684,7 @@ function renderEscalationSettings(){
   c.innerHTML=LOCATIONS.map(loc=>{const s=escalationSettings[loc]||{};return`<div style="margin-bottom:16px"><div style="font-weight:600;font-size:14px;margin-bottom:8px">${loc}</div><div class="grid2">${ESCALATION_LEVELS.map((l,i)=>`<div><label style="font-size:12px;color:var(--text-sec)">${l.label} (Day ${l.days}+)</label><input type="email" id="esc-${loc}-${i}" value="${(s[['managerEmail','regionalEmail','directorEmail','executiveEmail'][i]])||''}" placeholder="${l.label.toLowerCase()}@co.com" style="margin-top:3px"></div>`).join('')}</div></div>`;}).join('<hr style="border:none;border-top:1px solid var(--border);margin:4px 0 16px">');
 }
 function saveEscalationSettings(){
-  LOCATIONS.forEach(loc=>{escalationSettings[loc]={managerEmail:document.getElementById(`esc-${loc}-0`)?.value||'',regionalEmail:document.getElementById(`esc-${loc}-1`)?.value||'',directorEmail:document.getElementById(`esc-${loc}-2`)?.value||'',executiveEmail:document.getElementById(`esc-${loc}-3`)?.value||''};});
+  LOCATIONS.forEach(loc=>{escalationSettings[loc]={managerEmail:document.getElementById(`esc-${loc}-0`)?.value||'',fleetManagerEmail:document.getElementById(`esc-${loc}-1`)?.value||'',regionalEmail:document.getElementById(`esc-${loc}-2`)?.value||'',directorEmail:document.getElementById(`esc-${loc}-3`)?.value||''};});
   sbSaveSettings();alert('Contacts saved! ✓');
 }
 
@@ -1881,6 +1911,23 @@ async function submitInspection(){
   if(odoVal>0)setOdo(u.id,odoVal,'inspection');
   const record={id:currentInspectionId,unitId:u.id,unitType:u.type,unitLocation:u.location,tech,odo:odoVal,notes:document.getElementById('insp-notes').value,ts:Date.now(),defects,items:allItems,gps:gpsData||null,submittedBy:currentUser?.email||''};
   inspections.push(record);syncDefectLog();
+  // Send email notifications for each defect
+  if(record.defects&&record.defects.length){
+    record.defects.forEach(d=>{
+      const logEntry={
+        unitId:record.unitId,
+        unitLocation:record.unitLocation||'',
+        unitType:record.unitType,
+        tech:record.tech,
+        ts:record.ts,
+        section:d.section,
+        item:d.item,
+        note:d.note||'',
+        photos:d.photos||[]
+      };
+      sendDefectEmail(logEntry, record);
+    });
+  }
   // Save JSON record to storage folder
   (async()=>{
     try{

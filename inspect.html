@@ -129,6 +129,7 @@ textarea{resize:vertical}
 const SUPABASE_URL = 'https://tlqxcpybsrolgsglwehr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRscXhjcHlic3JvbGdzZ2x3ZWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjAyMTMsImV4cCI6MjA5NjU5NjIxM30.C6RNumDgJz75IcijCDtVk94KbGKCcibcMduNAJPZa_s';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const EDGE_FUNCTION_URL = 'https://tlqxcpybsrolgsglwehr.supabase.co/functions/v1/bright-task';
 
 const ITEMS={
   van:{'Exterior':['Windshield / glass','Mirrors','Lights (head/tail/brake/turn)','Horn','Wipers & washers','Body damage / rust','Fuel cap','Mud flaps'],'Tires & Wheels':['Tire condition (tread depth)','Tire inflation','Lug nuts / wheel seals','Spare tire & equipment'],'Under Hood':['Engine oil level','Coolant level','Power steering fluid','Brake fluid','Belts & hoses','Battery & cables'],'Brakes & Steering':['Brake pedal feel','Parking brake','Steering play','ABS indicator'],'Interior / Safety':['Seatbelts','Fire extinguisher','First aid kit','Emergency triangles','Registration & insurance docs']},
@@ -151,6 +152,36 @@ function showScreen(id) {
 
 function typeName(t) {
   return t === 'van' ? 'Van/Pickup' : t === 'trailer' ? 'Trailer' : 'Box Truck (10k+)';
+}
+
+// ─── EMAIL NOTIFICATIONS ─────────────────────────────────────────────────────
+async function sendDefectEmails(record){
+  if(!record.defects||!record.defects.length) return;
+  // Get escalation settings from Supabase
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/fi_settings?key=eq.escalation&select=value`,{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+    });
+    const rows=await res.json();
+    const escalation=(rows&&rows[0])?rows[0].value:{};
+    const loc=record.unitLocation||'';
+    const locSettings=escalation[loc]||{};
+    const managerEmail=locSettings.managerEmail||'';
+    if(!managerEmail) return;
+    
+    for(const d of record.defects){
+      await fetch(EDGE_FUNCTION_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_KEY}`,'apikey':SUPABASE_KEY},
+        body:JSON.stringify({
+          defect:{unitId:record.unitId,unitLocation:loc,unitType:record.unitType,
+            tech:record.tech,ts:record.ts,section:d.section,item:d.item,
+            note:d.note||'',photos:d.photos||[],toEmail:managerEmail,escalationLevel:0},
+          inspection:record
+        })
+      });
+    }
+  }catch(e){console.warn('Email notification failed:',e);}
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
