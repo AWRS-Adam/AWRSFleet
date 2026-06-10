@@ -740,11 +740,14 @@ sb.auth.onAuthStateChange(async(event,session)=>{
 });
 
 // ─── EMAIL NOTIFICATIONS ─────────────────────────────────────────────────────
-async function sendDefectEmail(defect, inspection){
+async function sendDefectEmail(defects, inspection){
+  // defects can be a single defect object or array
+  const defectList=Array.isArray(defects)?defects:[defects];
+  if(!defectList.length) return;
   try{
-    const loc=defect.unitLocation||'';
+    const loc=defectList[0].unitLocation||inspection.unitLocation||'';
     const toEmail=getEscEmail(loc, 0);
-    console.log('Sending defect email to:',toEmail,'for location:',loc);
+    console.log('Sending defect email to:',toEmail,'for location:',loc,'defects:',defectList.length);
     if(!toEmail){
       console.warn('No manager email set for location:',loc,'— set it in Admin > Settings > Escalation');
       return;
@@ -757,8 +760,16 @@ async function sendDefectEmail(defect, inspection){
         'apikey':SUPABASE_KEY
       },
       body:JSON.stringify({
-        defect:{...defect, toEmail, escalationLevel:0},
-        inspection:{odo:inspection.odo,gps:inspection.gps}
+        defects:defectList.map(d=>({...d, toEmail, escalationLevel:0})),
+        inspection:{
+          unitId:inspection.unitId,
+          unitLocation:inspection.unitLocation,
+          unitType:inspection.unitType,
+          tech:inspection.tech,
+          odo:inspection.odo,
+          gps:inspection.gps,
+          ts:inspection.ts
+        }
       })
     });
     const data=await res.json();
@@ -2036,22 +2047,20 @@ async function submitInspection(){
   if(odoVal>0)setOdo(u.id,odoVal,'inspection');
   const record={id:currentInspectionId,unitId:u.id,unitType:u.type,unitLocation:u.location,tech,odo:odoVal,notes:document.getElementById('insp-notes').value,ts:Date.now(),defects,items:allItems,gps:gpsData||null,submittedBy:currentUser?.email||''};
   inspections.push(record);syncDefectLog();
-  // Send email notifications for each defect
+  // Send ONE email with ALL defects
   if(record.defects&&record.defects.length){
-    record.defects.forEach(d=>{
-      const logEntry={
-        unitId:record.unitId,
-        unitLocation:record.unitLocation||'',
-        unitType:record.unitType,
-        tech:record.tech,
-        ts:record.ts,
-        section:d.section,
-        item:d.item,
-        note:d.note||'',
-        photos:d.photos||[]
-      };
-      sendDefectEmail(logEntry, record);
-    });
+    const defectList=record.defects.map(d=>({
+      unitId:record.unitId,
+      unitLocation:record.unitLocation||'',
+      unitType:record.unitType,
+      tech:record.tech,
+      ts:record.ts,
+      section:d.section,
+      item:d.item,
+      note:d.note||'',
+      photos:d.photos||[]
+    }));
+    sendDefectEmail(defectList, record);
   }
   // Save JSON record to storage folder
   (async()=>{

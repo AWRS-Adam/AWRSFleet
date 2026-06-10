@@ -174,23 +174,23 @@ async function sendDefectEmails(record){
       console.warn('No manager email configured for location:',loc);
       return;
     }
-    for(const d of record.defects){
-      console.log('Calling edge function for defect:',d.item);
-      const r=await fetch(EDGE_FUNCTION_URL,{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_KEY}`,'apikey':SUPABASE_KEY},
-        body:JSON.stringify({
-          defect:{
-            unitId:record.unitId,unitLocation:loc,unitType:record.unitType,
-            tech:record.tech,ts:record.ts,section:d.section,item:d.item,
-            note:d.note||'',photos:d.photos||[],toEmail:managerEmail,escalationLevel:0
-          },
-          inspection:{odo:record.odo,gps:record.gps}
-        })
-      });
-      const result=await r.json();
-      console.log('Edge function result:',result);
-    }
+    // Send ONE email with all defects
+    const defectList=record.defects.map(d=>({
+      unitId:record.unitId,unitLocation:loc,unitType:record.unitType,
+      tech:record.tech,ts:record.ts,section:d.section,item:d.item,
+      note:d.note||'',photos:d.photos||[],toEmail:managerEmail,escalationLevel:0
+    }));
+    console.log('Calling edge function with',defectList.length,'defects');
+    const r=await fetch(EDGE_FUNCTION_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_KEY}`,'apikey':SUPABASE_KEY},
+      body:JSON.stringify({
+        defects:defectList,
+        inspection:{unitId:record.unitId,unitLocation:loc,tech:record.tech,odo:record.odo,gps:record.gps,ts:record.ts}
+      })
+    });
+    const result=await r.json();
+    console.log('Edge function result:',result);
   }catch(e){
     console.error('Email notification failed:',e.message,e.stack);
   }
