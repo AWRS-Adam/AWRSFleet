@@ -238,7 +238,7 @@ textarea{resize:vertical}
       <button class="btn sm" id="refresh-btn" title="Refresh data">↻</button>
       <button class="btn sm" id="theme-btn" title="Toggle dark mode">🌙</button>
       <button class="btn sm" id="admin-btn" onclick="showScreen('screen-admin')" style="display:none">Admin <span id="overdue-badge" class="overdue-count" style="display:none">0</span></button>
-      <button class="btn sm" id="signout-btn">Sign Out</button>
+      <button class="btn sm" id="signout-btn" onclick="doSignOut()">Sign Out</button>
     </div>
   </div>
   <div class="content">
@@ -1465,16 +1465,19 @@ function openInspDetail(r){
   // GPS Map
   if(r.gps&&r.gps.lat&&r.gps.lng){
     const lat=r.gps.lat,lng=r.gps.lng;
-    const mapUrl=`https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=560x220&markers=color:red%7C${lat},${lng}&key=`;
-    const streetViewUrl=`https://www.google.com/maps/@${lat},${lng},15z`;
     html+=`<div style="margin-bottom:16px">
       <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin-bottom:8px">GPS Location</p>
-      <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:6px;background:var(--bg);padding:12px;text-align:center">
-        <div style="font-size:13px;color:var(--text-sec);margin-bottom:8px">📍 ${lat}, ${lng}</div>
-        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-          <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" class="btn sm primary">🗺 Open in Google Maps</a>
-          <a href="https://www.google.com/maps/@${lat},${lng},15z" target="_blank" class="btn sm">🛰 Street View</a>
-        </div>
+      <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:6px">
+        <iframe 
+          src="https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(lng)-.005},${parseFloat(lat)-.005},${parseFloat(lng)+.005},${parseFloat(lat)+.005}&layer=mapnik&marker=${lat},${lng}"
+          width="100%" height="220" style="border:none;display:block"
+          loading="lazy">
+        </iframe>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" class="btn sm primary">🗺 Google Maps</a>
+        <a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}&zoom=15" target="_blank" class="btn sm">🗺 OpenStreetMap</a>
+        <a href="https://www.google.com/maps/@${lat},${lng},15z" target="_blank" class="btn sm">🛰 Street View</a>
       </div>
     </div>`;
   }
