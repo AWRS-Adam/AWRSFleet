@@ -415,6 +415,11 @@ async function saveInBackground(record, odoVal) {
       );
     }
   } catch(e) { console.warn('Odometer save failed:', e); }
+
+  // Send email notifications for defects
+  if (record.defects && record.defects.length) {
+    sendDefectEmails(record);
+  }
 }
 
 // ─── BACKGROUND PHOTO UPLOAD ─────────────────────────────────────────────────
