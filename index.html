@@ -2805,6 +2805,48 @@ window.addEventListener('popstate', function(e){
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('load', function() {
   initTheme();
+  // Handle password reset redirect from email
+  if(window.location.hash.includes('access_token')&&window.location.hash.includes('type=recovery')){
+    // Show password reset form
+    document.getElementById('loading-wrap').style.display='none';
+    document.getElementById('auth-wrap').style.display='flex';
+    // Switch to reset password tab
+    setTimeout(()=>{
+      const email=document.getElementById('auth-email');
+      const pwd=document.getElementById('auth-password');
+      const btn=document.getElementById('auth-submit');
+      const title=document.querySelector('.auth-title');
+      if(title) title.textContent='Set New Password';
+      if(email) email.style.display='none';
+      if(btn) btn.textContent='Update Password';
+      if(pwd) pwd.placeholder='New password';
+      // Handle the token from hash
+      const params=new URLSearchParams(window.location.hash.substring(1));
+      const accessToken=params.get('access_token');
+      if(accessToken){
+        window._resetToken=accessToken;
+        btn.onclick=async()=>{
+          const newPwd=pwd.value;
+          if(!newPwd||newPwd.length<6){alert('Password must be at least 6 characters.');return;}
+          try{
+            const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{
+              method:'PUT',
+              headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${accessToken}`,'Content-Type':'application/json'},
+              body:JSON.stringify({password:newPwd})
+            });
+            if(res.ok){
+              alert('✓ Password updated! Please sign in with your new password.');
+              window.location.href=window.location.pathname;
+            } else {
+              const err=await res.json();
+              alert('Error: '+(err.message||'Could not update password'));
+            }
+          }catch(e){alert('Error: '+e.message);}
+        };
+      }
+    },500);
+    return;
+  }
   // Set initial history state
   history.replaceState({screen:'screen-home'}, '', window.location.pathname);
   console.log('Page loaded, binding events');
