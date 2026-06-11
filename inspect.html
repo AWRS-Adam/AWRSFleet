@@ -120,6 +120,7 @@ textarea{resize:vertical}
   </div>
   <div class="content">
     <div id="summary-alert"></div>
+  <div id="email-status"></div>
     <div class="card" id="summary-content"></div>
     <div style="text-align:center;margin-top:20px;color:var(--text-sec);font-size:13px">✓ Your inspection has been saved. You can close this page.</div>
   </div>
@@ -172,6 +173,8 @@ async function sendDefectEmails(record){
     console.log('Manager email for',loc,':',managerEmail);
     if(!managerEmail){
       console.warn('No manager email configured for location:',loc);
+      const el=document.getElementById('email-status');
+      if(el) el.innerHTML=`<div style="font-size:12px;color:var(--amber);margin-top:8px">⚠ No manager email set for ${loc}</div>`;
       return;
     }
     // Send ONE email with all defects
@@ -418,7 +421,13 @@ async function saveInBackground(record, odoVal) {
 
   // Send email notifications for defects
   if (record.defects && record.defects.length) {
-    sendDefectEmails(record);
+    sendDefectEmails(record).then(()=>{
+      const el=document.getElementById('email-status');
+      if(el) el.innerHTML='<div style="font-size:12px;color:var(--green);margin-top:8px">✓ Manager notified by email</div>';
+    }).catch(e=>{
+      const el=document.getElementById('email-status');
+      if(el) el.innerHTML=`<div style="font-size:12px;color:var(--red);margin-top:8px">⚠ Email notification failed: ${e.message}</div>`;
+    });
   }
 }
 
