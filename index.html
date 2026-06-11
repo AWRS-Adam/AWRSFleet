@@ -735,16 +735,27 @@ async function doRefresh(){
 }
 
 async function doSignOut(){
-  try {
-    await sb.auth.signOut();
-  } catch(e) {
-    console.warn('signOut error:', e);
-  }
-  // Clear all storage
-  try { localStorage.clear(); } catch(e) {}
-  try { sessionStorage.clear(); } catch(e) {}
-  // Force hard reload bypassing cache
-  window.location.href = window.location.pathname + '?signout=' + Date.now();
+  // Sign out via REST API directly
+  try{
+    const session=sb.auth.session&&sb.auth.session();
+    const token=session?.access_token;
+    if(token){
+      await fetch(`${SUPABASE_URL}/auth/v1/logout`,{
+        method:'POST',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body:'{}'
+      });
+    }
+  }catch(e){console.warn('signOut REST error:',e);}
+  try{await sb.auth.signOut();}catch(e){}
+  // Clear ALL storage including Supabase session keys
+  try{
+    const keys=Object.keys(localStorage);
+    keys.forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+  try{sessionStorage.clear();}catch(e){}
+  // Hard reload to login page
+  window.location.replace(window.location.pathname+'?signout='+Date.now());
 }
 
 // ─── AUTH STATE ───────────────────────────────────────────────────────────────
