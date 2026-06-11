@@ -236,6 +236,7 @@ textarea{resize:vertical}
     <div style="display:flex;gap:8px;align-items:center">
       <span id="sync-status" style="font-size:11px;color:var(--text-sec)"></span>
       <button class="btn sm" id="refresh-btn" title="Refresh data">↻</button>
+      <button class="btn sm" onclick="showScreen('screen-equipment')" title="Extra Equipment">🔧</button>
       <button class="btn sm" id="theme-btn" title="Toggle dark mode">🌙</button>
       <button class="btn sm" id="admin-btn" onclick="showScreen('screen-admin')" style="display:none">Admin <span id="overdue-badge" class="overdue-count" style="display:none">0</span></button>
       <button class="btn sm" id="signout-btn" onclick="console.log('Sign out clicked');doSignOut()">Sign Out</button>
@@ -383,6 +384,7 @@ textarea{resize:vertical}
       <div class="tab" onclick="switchTab('maintenance')">Maintenance <span id="maint-tab-count" class="overdue-count" style="display:none">0</span></div>
       <div class="tab" onclick="switchTab('history')">History</div>
       <div class="tab" onclick="switchTab('users')">Users</div>
+      <div class="tab" onclick="switchTab('equipment')">Equipment</div>
       <div class="tab" onclick="switchTab('export')">Export</div>
       <div class="tab" onclick="switchTab('settings')">Settings</div>
     </div>
@@ -390,6 +392,15 @@ textarea{resize:vertical}
     <div id="tab-maintenance" style="display:none"><div id="admin-maint"></div><div id="no-maint" class="empty-state" style="display:none">✓ All maintenance up to date!</div></div>
     <div id="tab-history" style="display:none"><div id="admin-history"></div><div id="no-history" class="empty-state" style="display:none">No inspections yet.</div></div>
     <div id="tab-users" style="display:none"><div id="admin-users"></div></div>
+    <div id="tab-equipment" style="display:none">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <p style="font-size:16px;font-weight:600;margin:0">Extra Equipment</p>
+          <button class="btn sm primary" onclick="showAddEquipment()">+ Add Equipment</button>
+        </div>
+        <div id="admin-equipment-list"></div>
+      </div>
+    </div>
     <div id="tab-export" style="display:none">
       <div class="card">
         <p style="font-size:16px;font-weight:600;margin-bottom:4px">Export Data</p>
@@ -517,6 +528,69 @@ textarea{resize:vertical}
     <img id="photo-modal-img" class="photo-modal-img" src="" alt="Inspection photo">
     <div style="margin-top:10px;display:flex;justify-content:flex-end">
       <button class="btn sm" onclick="document.getElementById('photo-modal').style.display='none'">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Equipment Screen -->
+<div id="screen-equipment" class="screen">
+  <div class="topbar">
+    <button class="btn sm" onclick="showScreen('screen-home')">← Back</button>
+    <span style="font-weight:600;font-size:15px">Extra Equipment</span>
+    <button class="btn sm primary" id="add-equip-btn" style="display:none" onclick="showAddEquipment()">+ Add</button>
+  </div>
+  <div class="content">
+    <div class="filter-row" style="margin-bottom:12px">
+      <select id="equip-location-filter" onchange="renderEquipment()" style="padding:5px 10px;border:1px solid var(--border-med);border-radius:20px;background:var(--surface);color:var(--text-sec);font-size:13px">
+        <option value="">📍 All Locations</option>
+        <option>NY1</option><option>WCC</option><option>CT1</option><option>FL1</option>
+        <option>GA1</option><option>MD1</option><option>NJ1</option><option>OpCo</option>
+        <option>MO1</option><option>MO2</option><option>IL1</option><option>IN1</option>
+      </select>
+      <select id="equip-status-filter" onchange="renderEquipment()" style="padding:5px 10px;border:1px solid var(--border-med);border-radius:20px;background:var(--surface);color:var(--text-sec);font-size:13px">
+        <option value="">All Status</option>
+        <option value="overdue">⚠ Overdue</option>
+        <option value="soon">⏱ Due Soon</option>
+        <option value="ok">✓ OK</option>
+      </select>
+    </div>
+    <div id="equipment-list"></div>
+    <div id="equipment-empty" style="display:none;text-align:center;padding:40px;color:var(--text-sec)">
+      <div style="font-size:40px;margin-bottom:12px">🔧</div>
+      <div style="font-weight:600;margin-bottom:4px">No equipment yet</div>
+      <div style="font-size:13px">Click + Add to add equipment for this location</div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Equipment Modal -->
+<div id="equip-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--surface);border-radius:var(--radius);padding:20px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:600" id="equip-modal-title">Add Equipment</div>
+      <button class="btn sm" onclick="closeEquipModal()">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div><label class="fl">Equipment Name <span style="color:var(--red)">*</span></label>
+        <input type="text" id="equip-name" placeholder="e.g. Air Compressor, Generator" style="width:100%;padding:8px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);font-size:14px;box-sizing:border-box"></div>
+      <div><label class="fl">Location <span style="color:var(--red)">*</span></label>
+        <select id="equip-loc" style="width:100%;padding:8px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);font-size:14px">
+          <option value="">Select location...</option>
+          <option>NY1</option><option>WCC</option><option>CT1</option><option>FL1</option>
+          <option>GA1</option><option>MD1</option><option>NJ1</option><option>OpCo</option>
+          <option>MO1</option><option>MO2</option><option>IL1</option><option>IN1</option>
+        </select></div>
+      <div><label class="fl">Last Service Date</label>
+        <input type="date" id="equip-last-date" style="width:100%;padding:8px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);font-size:14px;box-sizing:border-box"></div>
+      <div><label class="fl">Service Notes</label>
+        <textarea id="equip-notes" placeholder="What was done..." rows="3" style="width:100%;padding:8px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);font-size:14px;resize:vertical;box-sizing:border-box"></textarea></div>
+      <div><label class="fl">Service Interval (days)</label>
+        <input type="number" id="equip-interval" placeholder="e.g. 90" min="1" style="width:100%;padding:8px 12px;border:1px solid var(--border-med);border-radius:var(--radius-sm);font-size:14px;box-sizing:border-box"></div>
+      <input type="hidden" id="equip-edit-id">
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn primary" style="flex:1" onclick="saveEquipment()">Save Equipment</button>
+        <button class="btn" onclick="closeEquipModal()">Cancel</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1171,12 +1245,13 @@ function getEscEmail(loc,lv){const l=escalationSettings[loc]||{};return(['manage
 // ─── ADMIN ────────────────────────────────────────────────────────────────────
 function switchTab(tab){
   activeTab=tab;
-  ['defects','maintenance','history','users','export','settings'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===tab?'block':'none';});
-  document.querySelectorAll('.tab').forEach((el,i)=>{el.classList.toggle('active',['defects','maintenance','history','users','export','settings'][i]===tab);});
+  ['defects','maintenance','history','users','equipment','export','settings'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===tab?'block':'none';});
+  document.querySelectorAll('.tab').forEach((el,i)=>{el.classList.toggle('active',['defects','maintenance','history','users','equipment','export','settings'][i]===tab);});
   if(tab==='defects')renderAdminDefects();
   if(tab==='maintenance')renderAdminMaint();
   if(tab==='history')renderAdminHistory();
   if(tab==='users')renderAdminUsers();
+  if(tab==='equipment')renderAdminEquipment();
   if(tab==='export')initExport();
   if(tab==='settings'){renderIntervalSettings();renderEscalationSettings();renderAdminEmailList();initAzugaImport();initEnterpriseImport();}
 }
@@ -1730,6 +1805,241 @@ function resolveFromDetail(logId, unitId){
   renderFleet();updateOverdueBadge();
   // Refresh the panel
   openDefectDetail(unitId);
+}
+
+// ─── EQUIPMENT ───────────────────────────────────────────────────────────────
+let equipment = []; // array of equipment objects
+
+async function loadEquipment(){
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/fi_equipment?select=*&order=created_at.desc`,{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Accept':'application/json'}
+    });
+    if(res.ok) equipment=await res.json();
+    else equipment=[];
+  }catch(e){equipment=[];}
+}
+
+async function saveEquipmentToDb(item){
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/fi_equipment`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify(item)
+  });
+  return res.ok;
+}
+
+async function deleteEquipmentFromDb(id){
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/fi_equipment?id=eq.${id}`,{
+    method:'DELETE',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+  });
+  return res.ok;
+}
+
+function equipStatus(item){
+  if(!item.last_service_date||!item.interval_days) return 'unknown';
+  const last=new Date(item.last_service_date).getTime();
+  const daysSince=Math.floor((Date.now()-last)/86400000);
+  const daysLeft=item.interval_days-daysSince;
+  if(daysLeft<=0) return 'overdue';
+  if(daysLeft<=14) return 'soon';
+  return 'ok';
+}
+
+function equipDaysLeft(item){
+  if(!item.last_service_date||!item.interval_days) return null;
+  const last=new Date(item.last_service_date).getTime();
+  const daysSince=Math.floor((Date.now()-last)/86400000);
+  return item.interval_days-daysSince;
+}
+
+function getVisibleEquipment(){
+  if(isAdmin) return equipment;
+  if(Array.isArray(userLocation)) return equipment.filter(e=>userLocation.includes(e.location));
+  return equipment.filter(e=>e.location===userLocation);
+}
+
+function renderEquipment(){
+  const list=document.getElementById('equipment-list');
+  const empty=document.getElementById('equipment-empty');
+  const addBtn=document.getElementById('add-equip-btn');
+  if(addBtn) addBtn.style.display='inline-flex';
+  
+  const locF=document.getElementById('equip-location-filter')?.value||'';
+  const statusF=document.getElementById('equip-status-filter')?.value||'';
+  
+  let items=getVisibleEquipment();
+  if(locF) items=items.filter(e=>e.location===locF);
+  if(statusF) items=items.filter(e=>equipStatus(e)===statusF);
+  
+  // Sort: overdue first, then soon, then ok
+  items.sort((a,b)=>{
+    const order={overdue:0,soon:1,ok:2,unknown:3};
+    return (order[equipStatus(a)]||3)-(order[equipStatus(b)]||3);
+  });
+  
+  if(!items.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  
+  list.innerHTML=items.map(item=>{
+    const st=equipStatus(item);
+    const dl=equipDaysLeft(item);
+    const statusBadge=st==='overdue'?`<span class="badge defect">⚠ ${Math.abs(dl)}d overdue</span>`:
+      st==='soon'?`<span class="badge pending">⏱ ${dl}d left</span>`:
+      st==='ok'?`<span class="badge ok">✓ ${dl}d left</span>`:
+      `<span class="badge pending">No interval set</span>`;
+    const lastDate=item.last_service_date?new Date(item.last_service_date).toLocaleDateString():'Never serviced';
+    return`<div class="card" style="margin-bottom:8px;border-left:3px solid ${st==='overdue'?'var(--red)':st==='soon'?'var(--amber)':'var(--green)'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <strong style="font-size:15px">${item.name}</strong>
+            <span class="loc-tag">${item.location||''}</span>
+            ${statusBadge}
+          </div>
+          <div style="font-size:12px;color:var(--text-sec)">Last service: ${lastDate}${item.interval_days?' · Every '+item.interval_days+' days':''}</div>
+          ${item.notes?`<div style="font-size:12px;color:var(--text-hint);margin-top:3px">${item.notes}</div>`:''}
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn sm" onclick="editEquipment('${item.id}')">✏️ Edit</button>
+          <button class="btn sm success" onclick="logEquipService('${item.id}')">✓ Log Service</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderAdminEquipment(){
+  loadEquipment().then(()=>{
+    const list=document.getElementById('admin-equipment-list');
+    if(!list) return;
+    if(!equipment.length){
+      list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-sec)">No equipment added yet.</div>';
+      return;
+    }
+    // Group by location
+    const byLoc={};
+    equipment.forEach(e=>{
+      const loc=e.location||'Unknown';
+      if(!byLoc[loc]) byLoc[loc]=[];
+      byLoc[loc].push(e);
+    });
+    list.innerHTML=Object.entries(byLoc).map(([loc,items])=>`
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-hint);margin-bottom:8px">${loc}</div>
+        ${items.map(item=>{
+          const st=equipStatus(item);
+          const dl=equipDaysLeft(item);
+          const statusBadge=st==='overdue'?`<span class="badge defect">⚠ ${Math.abs(dl)}d overdue</span>`:
+            st==='soon'?`<span class="badge pending">⏱ ${dl}d left</span>`:
+            st==='ok'?`<span class="badge ok">✓ ${dl}d left</span>`:'';
+          return`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);gap:8px">
+            <div>
+              <div style="font-weight:500;font-size:14px">${item.name} ${statusBadge}</div>
+              <div style="font-size:12px;color:var(--text-sec)">${item.last_service_date?new Date(item.last_service_date).toLocaleDateString():'Never serviced'}${item.notes?' · '+item.notes:''}</div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn sm" onclick="editEquipment('${item.id}')">✏️</button>
+              <button class="btn sm success" onclick="logEquipService('${item.id}')">✓</button>
+              <button class="btn sm danger" onclick="deleteEquipment('${item.id}')">🗑</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`).join('');
+  });
+}
+
+function showAddEquipment(){
+  document.getElementById('equip-modal-title').textContent='Add Equipment';
+  document.getElementById('equip-name').value='';
+  document.getElementById('equip-loc').value=isAdmin?'':(Array.isArray(userLocation)?userLocation[0]:userLocation)||'';
+  document.getElementById('equip-last-date').value='';
+  document.getElementById('equip-notes').value='';
+  document.getElementById('equip-interval').value='90';
+  document.getElementById('equip-edit-id').value='';
+  if(!isAdmin) document.getElementById('equip-loc').disabled=true;
+  else document.getElementById('equip-loc').disabled=false;
+  document.getElementById('equip-modal').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
+function editEquipment(id){
+  const item=equipment.find(e=>e.id===id);
+  if(!item) return;
+  document.getElementById('equip-modal-title').textContent='Edit Equipment';
+  document.getElementById('equip-name').value=item.name||'';
+  document.getElementById('equip-loc').value=item.location||'';
+  document.getElementById('equip-last-date').value=item.last_service_date||'';
+  document.getElementById('equip-notes').value=item.notes||'';
+  document.getElementById('equip-interval').value=item.interval_days||'';
+  document.getElementById('equip-edit-id').value=id;
+  document.getElementById('equip-modal').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
+function logEquipService(id){
+  const item=equipment.find(e=>e.id===id);
+  if(!item) return;
+  const today=new Date().toISOString().split('T')[0];
+  const notes=prompt('Service notes (what was done):','')||'';
+  document.getElementById('equip-name').value=item.name;
+  document.getElementById('equip-loc').value=item.location;
+  document.getElementById('equip-last-date').value=today;
+  document.getElementById('equip-notes').value=notes;
+  document.getElementById('equip-interval').value=item.interval_days||'';
+  document.getElementById('equip-edit-id').value=id;
+  document.getElementById('equip-modal-title').textContent='Log Service — '+item.name;
+  document.getElementById('equip-modal').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
+async function saveEquipment(){
+  const name=document.getElementById('equip-name').value.trim();
+  const loc=document.getElementById('equip-loc').value;
+  const lastDate=document.getElementById('equip-last-date').value;
+  const notes=document.getElementById('equip-notes').value.trim();
+  const interval=parseInt(document.getElementById('equip-interval').value)||null;
+  const editId=document.getElementById('equip-edit-id').value;
+  
+  if(!name){alert('Equipment name is required.');return;}
+  if(!loc){alert('Location is required.');return;}
+  
+  const item={
+    id: editId||('EQ-'+Date.now()),
+    name, location:loc,
+    last_service_date:lastDate||null,
+    notes, interval_days:interval,
+    updated_at:new Date().toISOString()
+  };
+  
+  const ok=await saveEquipmentToDb(item);
+  if(ok){
+    // Update local array
+    const idx=equipment.findIndex(e=>e.id===item.id);
+    if(idx>=0) equipment[idx]=item;
+    else equipment.unshift(item);
+    closeEquipModal();
+    renderEquipment();
+    renderAdminEquipment();
+  } else {
+    alert('Failed to save. Please try again.');
+  }
+}
+
+async function deleteEquipment(id){
+  if(!confirm('Delete this equipment?')) return;
+  const ok=await deleteEquipmentFromDb(id);
+  if(ok){
+    equipment=equipment.filter(e=>e.id!==id);
+    renderEquipment();
+    renderAdminEquipment();
+  }
+}
+
+function closeEquipModal(){
+  document.getElementById('equip-modal').style.display='none';
+  document.body.style.overflow='';
 }
 
 // ─── EXPORT ──────────────────────────────────────────────────────────────────
@@ -2771,6 +3081,7 @@ function showScreen(id, pushState=true){
   window.scrollTo(0,0);
   if(id==='screen-admin') renderAdmin();
   if(id==='screen-home') doRefresh();
+  if(id==='screen-equipment'){loadEquipment().then(renderEquipment);}
   // Push to browser history so back button works
   if(pushState) history.pushState({screen:id}, '', window.location.pathname+'?screen='+id);
 }
