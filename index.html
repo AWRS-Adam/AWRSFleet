@@ -1487,7 +1487,45 @@ async function openDocsPanel(unitId, location){
       document.getElementById('docs-body').innerHTML=`<div class="alert-box danger">Storage error: ${JSON.stringify(newFiles)}</div>`;
       return;
     }
-    renderDocsFiles(unitId,location,prefix,combined,unitInsps);
+
+    // Load state inspection for this unit
+    let stateHtml='';
+    try{
+      const siRes=await fetch(`${SUPABASE_URL}/rest/v1/fi_state_inspection?unit_id=eq.${encodeURIComponent(unitId)}&select=*`,{
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Accept':'application/json'}
+      });
+      const siData=siRes.ok?await siRes.json():[];
+      const si=siData[0]||null;
+      if(si){
+        const expDate=new Date(si.expiry_date);
+        const daysLeft=Math.floor((expDate.getTime()-Date.now())/86400000);
+        const expired=daysLeft<0;
+        const soon=daysLeft<=30&&daysLeft>=0;
+        stateHtml=`<div class="card" style="margin-bottom:12px;border-left:3px solid ${expired?'var(--red)':soon?'var(--amber)':'var(--green)'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <div>
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-hint);margin-bottom:2px">State Inspection</div>
+              <div style="font-weight:600">${expired?'⚠ EXPIRED':'✓ Valid'} — Expires ${expDate.toLocaleDateString()}</div>
+              <div style="font-size:12px;color:${expired?'var(--red)':soon?'var(--amber)':'var(--text-sec)'}">${expired?Math.abs(daysLeft)+' days overdue':daysLeft+' days remaining'}</div>
+              ${si.notes?`<div style="font-size:12px;color:var(--text-hint);margin-top:2px">${si.notes}</div>`:''}
+            </div>
+            <button class="btn sm" onclick="editStateInsp('${unitId}','${si.expiry_date}','${si.notes||''}')">✏️ Update</button>
+          </div>
+        </div>`;
+      } else {
+        stateHtml=`<div class="card" style="margin-bottom:12px;border-left:3px solid var(--border-med)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-hint);margin-bottom:2px">State Inspection</div>
+              <div style="color:var(--text-sec);font-size:13px">No state inspection date recorded</div>
+            </div>
+            <button class="btn sm primary" onclick="editStateInsp('${unitId}','','')">+ Add</button>
+          </div>
+        </div>`;
+      }
+    }catch(e){console.warn('State inspection load error:',e);}
+
+    renderDocsFiles(unitId,location,prefix,combined,unitInsps,stateHtml);
   }catch(e){
     console.error('Docs error:',e);
     document.getElementById('docs-body').innerHTML=`<div class="alert-box danger">Failed to load files: ${e.message}</div>`;
