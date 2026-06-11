@@ -767,7 +767,17 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     const sbAdmins=(window._supabaseAdmins||[]).map(e=>e.toLowerCase());
     const allAdmins=[...ADMIN_EMAILS.map(e=>e.toLowerCase()),...sbAdmins];
     isAdmin=allAdmins.includes(currentUser.email.toLowerCase());
-    userLocation=isAdmin?null:(userProfile.location||null);
+    // Support multiple locations stored as array in profile
+    const rawLoc=userProfile.location||null;
+    if(isAdmin){
+      userLocation=null;
+    } else if(Array.isArray(rawLoc)){
+      userLocation=rawLoc; // multi-location user
+    } else if(typeof rawLoc==='string'&&rawLoc.includes(',')){
+      userLocation=rawLoc.split(',').map(l=>l.trim()); // comma-separated
+    } else {
+      userLocation=rawLoc;
+    }
     console.log('Auth:', currentUser.email, 'isAdmin:', isAdmin, 'location:', userLocation, 'dynamic admins:', sbAdmins);
     document.getElementById('auth-wrap').style.display='none';
     document.getElementById('app-wrap').style.display='block';
@@ -899,6 +909,8 @@ function getVisibleFleet(){
   const seen=new Set();
   const unique=fleet.filter(u=>{if(seen.has(u.id))return false;seen.add(u.id);return true;});
   if(isAdmin) return unique;
+  // Support multiple locations (array) or single location (string)
+  if(Array.isArray(userLocation)) return unique.filter(u=>userLocation.includes(u.location));
   return unique.filter(u=>u.location===userLocation);
 }
 
@@ -906,7 +918,25 @@ function getVisibleFleet(){
 async function sbSaveSettings(){
   const added=fleet.filter(u=>!PRELOADED_FLEET.find(p=>p.id===u.id));
   ss('fi-fleet-added',added);ss('fi-maint-intervals',maintIntervals);ss('fi-escalation',escalationSettings);
-  try{await sb.from('fi_settings').upsert([{key:'fleet_added',value:added},{key:'maint_intervals',value:maintIntervals},{key:'escalation',value:escalationSettings}],{onConflict:'key'});}catch(e){console.warn(e);}
+  try{
+    const rows=[
+      {key:'fleet_added',value:added},
+      {key:'maint_intervals',value:maintIntervals},
+      {key:'escalation',value:escalationSettings}
+    ];
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/fi_settings`,{
+      method:'POST',
+      headers:{
+        'apikey':SUPABASE_KEY,
+        'Authorization':`Bearer ${SUPABASE_KEY}`,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates'
+      },
+      body:JSON.stringify(rows)
+    });
+    if(!res.ok) console.warn('sbSaveSettings error:',await res.text());
+    else console.log('Settings saved OK');
+  }catch(e){console.warn('sbSaveSettings:',e);}
 }
 async function sbSaveInspection(record){
   ss('fi-inspections',inspections);
