@@ -713,11 +713,13 @@ async function doRefresh(){
   showSyncStatus('⟳ Refreshing…','loading');
   try{
     console.log('Starting refresh via REST API...');
-    const [insps,defects,odo]=await Promise.all([
+    const [insps,defects,odo,maint]=await Promise.all([
       fetchFromSupabase('fi_inspections','id,data','created_at.desc',2000),
       fetchFromSupabase('fi_defect_log','log_id,data'),
       fetchFromSupabase('fi_odometer','unit_id,data'),
+      fetchFromSupabase('fi_maint_log','unit_id,item_id,data'),
     ]);
+    if(maint&&Array.isArray(maint)){maintLog={};maint.forEach(r=>{if(r.unit_id&&r.item_id){if(!maintLog[r.unit_id])maintLog[r.unit_id]={};maintLog[r.unit_id][r.item_id]=r.data;}});console.log('Refreshed maint log:',Object.keys(maintLog).length,'units');}
     console.log('Got inspections:',insps.length,'defects:',defects.length);
     inspections=insps.map(r=>r.data).filter(Boolean);
     console.log('First inspection unitId:',inspections[0]?.unitId);
@@ -852,7 +854,7 @@ async function initApp(){
       sb.from('fi_settings').select('key,value'),
       sb.from('fi_inspections').select('id,data').order('created_at',{ascending:false}).limit(2000),
       sb.from('fi_defect_log').select('log_id,data'),
-      sb.from('fi_maint_log').select('unit_id,item_id,data'),
+      fetchFromSupabase('fi_maint_log','unit_id,item_id,data'),
       sb.from('fi_odometer').select('unit_id,data'),
     ]);
     if(settingsRes.data){
@@ -933,7 +935,8 @@ async function sbSaveMaintLog(unitId,itemId){
   ss('fi-maint-log',maintLog);
   try{
     const data=(maintLog[unitId]||{})[itemId];
-    if(!data) return;
+    if(!data){console.warn('sbSaveMaintLog: no data for',unitId,itemId);return;}
+    console.log('Saving maint log:',unitId,itemId,data);
     const res=await fetch(`${SUPABASE_URL}/rest/v1/fi_maint_log`,{
       method:'POST',
       headers:{
@@ -944,8 +947,13 @@ async function sbSaveMaintLog(unitId,itemId){
       },
       body:JSON.stringify({unit_id:unitId,item_id:itemId,data})
     });
-    if(!res.ok) console.warn('sbSaveMaintLog error:',await res.text());
-  }catch(e){console.warn('sbSaveMaintLog:',e);}
+    const respText=await res.text();
+    if(!res.ok){
+      console.error('sbSaveMaintLog FAILED:',res.status,respText);
+    } else {
+      console.log('sbSaveMaintLog OK:',unitId,itemId);
+    }
+  }catch(e){console.error('sbSaveMaintLog exception:',e.message);}
 }
 async function sbSaveOdometer(unitId){
   ss('fi-odometer',odometerData);
