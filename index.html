@@ -2033,11 +2033,23 @@ async function handleEnterpriseFile(e){
   preview.innerHTML='';
 
   try{
-    const XLSX=await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
-    const data=await file.arrayBuffer();
-    const wb=XLSX.read(data,{type:'array'});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false,dateNF:'MM/DD/YYYY'});
+    // Parse CSV directly to avoid SheetJS date conversion issues
+    const text=await file.text();
+    const lines=text.split('\n').map(l=>l.trim()).filter(l=>l);
+    const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+    const rows=lines.slice(1).map(line=>{
+      // Handle quoted fields
+      const vals=[];let cur='';let inQ=false;
+      for(let i=0;i<line.length;i++){
+        if(line[i]==='"') inQ=!inQ;
+        else if(line[i]===','&&!inQ){vals.push(cur.trim());cur='';}
+        else cur+=line[i];
+      }
+      vals.push(cur.trim());
+      const obj={};
+      headers.forEach((h,i)=>obj[h]=vals[i]||'');
+      return obj;
+    });
 
     if(!rows.length){status.innerHTML='<span style="color:var(--red)">❌ No data found in file.</span>';return;}
 
