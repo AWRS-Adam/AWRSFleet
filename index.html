@@ -471,6 +471,14 @@ textarea{resize:vertical}
         <div id="azuga-status" style="margin-top:10px;font-size:13px"></div>
         <div id="azuga-preview" style="margin-top:10px"></div>
       </div>
+      <div class="card" style="border-left:3px solid var(--orange)">
+        <p style="font-size:14px;font-weight:500;margin-bottom:4px">🔧 Import from Enterprise Fleet</p>
+        <p style="font-size:13px;color:var(--text-sec);margin-bottom:12px">Upload your Enterprise Fleet maintenance report CSV to auto-log completed services.</p>
+        <input type="file" id="enterprise-file-input" accept=".csv,.xls,.xlsx" style="display:none">
+        <button class="btn sm" style="background:var(--orange);color:#fff;border-color:var(--orange)" onclick="document.getElementById('enterprise-file-input').click()">📂 Choose Enterprise File</button>
+        <div id="enterprise-status" style="margin-top:10px;font-size:13px"></div>
+        <div id="enterprise-preview" style="margin-top:10px"></div>
+      </div>
       <div class="card" style="border-left:3px solid var(--blue)">
         <p style="font-size:14px;font-weight:500;margin-bottom:4px">➕ Add Fleet Unit</p>
         <button class="btn primary sm" onclick="showScreen('screen-add')">+ Add Unit</button>
@@ -1091,7 +1099,7 @@ function switchTab(tab){
   if(tab==='history')renderAdminHistory();
   if(tab==='users')renderAdminUsers();
   if(tab==='export')initExport();
-  if(tab==='settings'){renderIntervalSettings();renderEscalationSettings();renderAdminEmailList();initAzugaImport();}
+  if(tab==='settings'){renderIntervalSettings();renderEscalationSettings();renderAdminEmailList();initAzugaImport();initEnterpriseImport();}
 }
 function renderAdmin(){
   const vf=getVisibleFleet();
@@ -1862,6 +1870,188 @@ async function removeDynamicAdmin(email){
     body:JSON.stringify({key:'admin_emails',value:updated})
   });
   renderAdminEmailList();
+}
+
+// ─── ENTERPRISE FLEET IMPORT ─────────────────────────────────────────────────
+
+// Map Enterprise service descriptions to our maint item IDs
+const ENTERPRISE_SERVICE_MAP = {
+  // Oil changes
+  'oil change': 'oil',
+  'full synthetic lube oil filter': 'oil',
+  'semi-synthetic lube oil filter': 'oil',
+  'lube oil filter': 'oil',
+  'full synthetic engine oil': 'oil',
+  'engine oil': 'oil',
+  'oil filter engine': 'oil',
+  'preventative maintenance': 'oil',
+  // Tire rotation
+  'tire rotation': 'tires',
+  'wheel balancing': 'tires',
+  'wheel balance': 'tires',
+  // Brakes
+  'brake pad': 'brakes',
+  'brake pad - front (set)': 'brakes',
+  'brake pad - rear (set)': 'brakes',
+  'brake rotor': 'brakes',
+  'brake rotor/disc - front': 'brakes',
+  'brake rotor/disc - rear': 'brakes',
+  'brake caliper': 'brakes',
+  'brake fluid flush': 'brakes',
+  // Air filter
+  'air filter element': 'air_filter',
+  'air filter': 'air_filter',
+  // Cabin air filter
+  'cabin air filter': 'cab_filter',
+  // Belts & hoses
+  'belts': 'belts',
+  'hoses': 'belts',
+  'serpentine belt': 'belts',
+  'coolant hose': 'belts',
+  // Transmission
+  'transmission flush': 'trans',
+  'transmission fluid': 'trans',
+  'transmission service': 'trans',
+  // Coolant
+  'coolant': 'coolant',
+  'radiator flush': 'coolant',
+  'coolant flush': 'coolant',
+  'radiator cooling fan': 'coolant',
+  // Compressor/Generator (trailers)
+  'compressor oil': 'comp_oil',
+  'generator oil': 'gen_oil',
+  'generator service': 'gen_oil',
+};
+
+function mapEnterpriseService(serviceDesc) {
+  if (!serviceDesc) return null;
+  const lower = serviceDesc.toLowerCase().trim();
+  // Exact match first
+  if (ENTERPRISE_SERVICE_MAP[lower]) return ENTERPRISE_SERVICE_MAP[lower];
+  // Partial match
+  for (const [key, val] of Object.entries(ENTERPRISE_SERVICE_MAP)) {
+    if (lower.includes(key) || key.includes(lower)) return val;
+  }
+  return null;
+}
+
+function initEnterpriseImport(){
+  const input=document.getElementById('enterprise-file-input');
+  if(input&&!input._bound){
+    input._bound=true;
+    input.addEventListener('change', handleEnterpriseFile);
+  }
+}
+
+async function handleEnterpriseFile(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  const status=document.getElementById('enterprise-status');
+  const preview=document.getElementById('enterprise-preview');
+  status.innerHTML='<span style="color:var(--blue)">⟳ Reading file…</span>';
+  preview.innerHTML='';
+
+  try{
+    const XLSX=await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
+    const data=await file.arrayBuffer();
+    const wb=XLSX.read(data,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+
+    if(!rows.length){status.innerHTML='<span style="color:var(--red)">❌ No data found in file.</span>';return;}
+
+    // Parse Enterprise rows
+    const updates=[];
+    const seen=new Set();
+    rows.forEach(row=>{
+      const vehicleId=String(row['Vehicle']||'').trim();
+      const serviceDesc=String(row['Service Desc']||'').trim();
+      const odo=parseInt(row['Odometer'])||0;
+      const completedDate=String(row['RO Completed Date']||'').trim();
+      const shop=String(row['Shop Name']||'').trim();
+      const status=String(row['RO Status*']||'').trim();
+      const roId=String(row['RO ID']||'').trim();
+
+      if(!vehicleId||!serviceDesc||vehicleId.length<4) return;
+      if(status!=='Work Completed') return; // only log completed work
+
+      const maintId=mapEnterpriseService(serviceDesc);
+      if(!maintId) return; // skip items we don't track
+
+      // Dedupe by vehicle+maintId+roId
+      const key=`${vehicleId}-${maintId}-${roId}`;
+      if(seen.has(key)) return;
+      seen.add(key);
+
+      const fleetUnit=fleet.find(f=>f.id===vehicleId);
+      if(!fleetUnit) return; // skip vehicles not in our fleet
+
+      const maintItem=MAINT_ITEMS.find(m=>m.id===maintId);
+      updates.push({vehicleId, maintId, odo, completedDate, shop, serviceDesc, maintName:maintItem?.name||maintId});
+    });
+
+    if(!updates.length){
+      status.innerHTML='<span style="color:var(--amber)">⚠ No matching maintenance records found. Make sure this is an Enterprise Fleet maintenance report with "Work Completed" records.</span>';
+      return;
+    }
+
+    status.innerHTML=`<span style="color:var(--green)">✓ Found ${updates.length} completed service records across ${new Set(updates.map(u=>u.vehicleId)).size} vehicles.</span>`;
+
+    preview.innerHTML=`
+      <div style="margin-top:12px">
+        <p style="font-weight:600;font-size:13px;margin-bottom:8px">Preview:</p>
+        <div style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm)">
+          ${updates.slice(0,30).map(u=>`
+            <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;align-items:center">
+              <strong>${u.vehicleId}</strong>
+              <span>${u.maintName}</span>
+              <span style="color:var(--text-sec)">${u.odo?u.odo.toLocaleString()+' mi':''} · ${u.completedDate} · ${u.shop}</span>
+            </div>`).join('')}
+          ${updates.length>30?`<div style="padding:8px 10px;font-size:12px;color:var(--text-sec)">...and ${updates.length-30} more</div>`:''}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn sm" style="background:var(--orange);color:#fff;border-color:var(--orange)" onclick="applyEnterpriseImport(window._enterpriseUpdates)">✓ Apply ${updates.length} Records</button>
+          <button class="btn sm" onclick="document.getElementById('enterprise-preview').innerHTML='';document.getElementById('enterprise-status').innerHTML=''">Cancel</button>
+        </div>
+      </div>`;
+    window._enterpriseUpdates=updates;
+
+  }catch(e){
+    status.innerHTML=`<span style="color:var(--red)">❌ Error: ${e.message}</span>`;
+    console.error('Enterprise import error:',e);
+  }
+  e.target.value='';
+}
+
+async function applyEnterpriseImport(updates){
+  if(!updates||!updates.length) return;
+  const status=document.getElementById('enterprise-status');
+  const preview=document.getElementById('enterprise-preview');
+  status.innerHTML='<span style="color:var(--blue)">⟳ Applying records…</span>';
+
+  let logged=0;
+  for(const u of updates){
+    if(!maintLog[u.vehicleId]) maintLog[u.vehicleId]={};
+    // Only update if newer than existing record
+    const existing=maintLog[u.vehicleId][u.maintId];
+    const newTs=u.completedDate&&u.completedDate!=='-'?new Date(u.completedDate).getTime():Date.now();
+    if(!existing||newTs>existing.ts){
+      maintLog[u.vehicleId][u.maintId]={
+        miles:u.odo,
+        ts:newTs,
+        tech:'Enterprise Fleet',
+        note:`${u.serviceDesc} at ${u.shop}`
+      };
+      if(u.odo>0) setOdo(u.vehicleId,u.odo,'enterprise');
+      await sbSaveMaintLog(u.vehicleId,u.maintId);
+      logged++;
+    }
+  }
+
+  preview.innerHTML='';
+  status.innerHTML=`<span style="color:var(--green)">✓ Logged ${logged} maintenance records from Enterprise Fleet!</span>`;
+  renderFleet();updateOverdueBadge();
+  setTimeout(()=>{status.innerHTML='';},5000);
 }
 
 // ─── AZUGA IMPORT ────────────────────────────────────────────────────────────
