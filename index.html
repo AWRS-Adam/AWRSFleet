@@ -1923,15 +1923,24 @@ const ENTERPRISE_SERVICE_MAP = {
   'oil change': 'oil',
   'full synthetic lube oil filter': 'oil',
   'semi-synthetic lube oil filter': 'oil',
+  'conventional lube oil and filter': 'oil',
+  'diesel full synthetic lube oil filter': 'oil',
+  'diesel semi synthetic engine oil': 'oil',
   'lube oil filter': 'oil',
   'full synthetic engine oil': 'oil',
+  'semi synthetic engine oil': 'oil',
   'engine oil': 'oil',
   'oil filter engine': 'oil',
+  'oil filter surcharge': 'oil',
+  'oil surcharge': 'oil',
   'preventative maintenance': 'oil',
   // Tire rotation
   'tire rotation': 'tires',
   'wheel balancing': 'tires',
   'wheel balance': 'tires',
+  'tire replacement': 'tires',
+  'flat repair': 'tires',
+  'tpms service valve kit': 'tires',
   // Brakes
   'brake pad': 'brakes',
   'brake pad - front (set)': 'brakes',
@@ -1939,31 +1948,52 @@ const ENTERPRISE_SERVICE_MAP = {
   'brake rotor': 'brakes',
   'brake rotor/disc - front': 'brakes',
   'brake rotor/disc - rear': 'brakes',
+  'brake disc / rotor bolt': 'brakes',
   'brake caliper': 'brakes',
+  'brake caliper front': 'brakes',
+  'brake caliper rear': 'brakes',
+  'brake caliper - right front': 'brakes',
+  'brake caliper kit': 'brakes',
   'brake fluid flush': 'brakes',
+  'brake fluid': 'brakes',
+  'brake inspection': 'brakes',
+  'diagnostics - brakes': 'brakes',
   // Air filter
   'air filter element': 'air_filter',
   'air filter': 'air_filter',
   // Cabin air filter
   'cabin air filter': 'cab_filter',
   // Belts & hoses
-  'belts': 'belts',
-  'hoses': 'belts',
+  'drive belt': 'belts',
   'serpentine belt': 'belts',
   'coolant hose': 'belts',
   // Transmission
   'transmission flush': 'trans',
   'transmission fluid': 'trans',
+  'transmission fluid & filter change': 'trans',
+  'fluid - a/t': 'trans',
   'transmission service': 'trans',
+  'diagnostics - transmission & drivetrain': 'trans',
   // Coolant
   'coolant': 'coolant',
   'radiator flush': 'coolant',
   'coolant flush': 'coolant',
   'radiator cooling fan': 'coolant',
+  'diagnostics - cooling system': 'coolant',
+  'coolant reservoir': 'coolant',
+  // Differential
+  'synthetic differential oil': 'trans',
+  'fluid - differential': 'trans',
+  // Spark plugs
+  'spark plug': 'spark_plugs',
+  'ignition coil': 'spark_plugs',
+  // Diesel fuel filter
+  'diesel fuel filter': 'fuel_filter',
   // Compressor/Generator (trailers)
   'compressor oil': 'comp_oil',
   'generator oil': 'gen_oil',
   'generator service': 'gen_oil',
+  'generator wiring': 'gen_oil',
 };
 
 function mapEnterpriseService(serviceDesc) {
