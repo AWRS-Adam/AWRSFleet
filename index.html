@@ -2010,11 +2010,16 @@ async function handleEnterpriseFile(e){
           ${updates.length>30?`<div style="padding:8px 10px;font-size:12px;color:var(--text-sec)">...and ${updates.length-30} more</div>`:''}
         </div>
         <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="btn sm" style="background:var(--orange);color:#fff;border-color:var(--orange)" onclick="applyEnterpriseImport(window._enterpriseUpdates)">✓ Apply ${updates.length} Records</button>
+          <button class="btn sm" id="enterprise-apply-btn" style="background:var(--orange);color:#fff;border-color:var(--orange)">✓ Apply ${updates.length} Records</button>
           <button class="btn sm" onclick="document.getElementById('enterprise-preview').innerHTML='';document.getElementById('enterprise-status').innerHTML=''">Cancel</button>
         </div>
       </div>`;
+    // Store and bind directly
     window._enterpriseUpdates=updates;
+    setTimeout(()=>{
+      const btn=document.getElementById('enterprise-apply-btn');
+      if(btn) btn.onclick=()=>applyEnterpriseImport(window._enterpriseUpdates);
+    },100);
 
   }catch(e){
     status.innerHTML=`<span style="color:var(--red)">❌ Error: ${e.message}</span>`;
