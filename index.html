@@ -2122,16 +2122,20 @@ async function applyEnterpriseImport(updates){
     const existing=maintLog[u.vehicleId][u.maintId];
     // Parse MM/DD/YYYY explicitly using UTC to avoid timezone issues
     let newTs=Date.now();
-    if(u.completedDate&&u.completedDate!=='-'&&u.completedDate.trim()!=''){
+    console.log('completedDate raw:',JSON.stringify(u.completedDate));
+    if(u.completedDate&&u.completedDate!=='-'&&String(u.completedDate).trim()!=''){
       try{
-        const p=u.completedDate.trim().split('/');
+        const dateStr=String(u.completedDate).trim();
+        const p=dateStr.split('/');
+        console.log('date parts:',p);
         if(p.length===3){
-          // Use UTC to avoid timezone shifts: YYYY-MM-DD
           const iso=`${p[2].padStart(4,'0')}-${p[0].padStart(2,'0')}-${p[1].padStart(2,'0')}`;
+          console.log('iso:',iso);
           const parsed=new Date(iso+'T12:00:00Z').getTime();
+          console.log('parsed ts:',parsed,'= ',new Date(parsed).toDateString());
           if(!isNaN(parsed)&&parsed>0) newTs=parsed;
         }
-      }catch(ex){newTs=Date.now();}
+      }catch(ex){console.error('date parse error:',ex);newTs=Date.now();}
     }
     if(!existing||newTs>existing.ts){
       maintLog[u.vehicleId][u.maintId]={
