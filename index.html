@@ -2053,6 +2053,15 @@ async function applyEnterpriseImport(updates){
     }
   }
 
+  // Save all maint logs to Supabase
+  status.innerHTML='<span style="color:var(--blue)">⟳ Saving to database…</span>';
+  const unitIds=[...new Set(updates.map(u=>u.vehicleId))];
+  for(const unitId of unitIds){
+    const items=Object.keys(maintLog[unitId]||{});
+    for(const itemId of items){
+      await sbSaveMaintLog(unitId,itemId);
+    }
+  }
   preview.innerHTML='';
   status.innerHTML=`<span style="color:var(--green)">✓ Logged ${logged} maintenance records from Enterprise Fleet!</span>`;
   renderFleet();updateOverdueBadge();
