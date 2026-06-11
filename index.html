@@ -2061,6 +2061,7 @@ async function handleEnterpriseFile(e){
       const serviceDesc=String(row['Service Desc']||'').trim();
       const odo=parseInt(row['Odometer'])||0;
       const completedDate=String(row['RO Completed Date']||'').trim();
+      if(updates.length<3) console.log('Row date raw:',JSON.stringify(row['RO Completed Date']),'-> completedDate:',completedDate);
       const shop=String(row['Shop Name']||'').trim();
       const status=String(row['RO Status*']||'').trim();
       const roId=String(row['RO ID']||'').trim();
