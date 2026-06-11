@@ -463,6 +463,14 @@ textarea{resize:vertical}
         <p style="font-size:14px;font-weight:500;margin-bottom:4px">⚙️ Supabase Tips</p>
         <p style="font-size:13px;color:var(--text-sec)">To let users sign in immediately without email confirmation, go to your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/providers" target="_blank" style="color:var(--blue)">Supabase Auth settings</a> and disable <strong>"Confirm email"</strong>.</p>
       </div>
+      <div class="card" style="border-left:3px solid var(--green)">
+        <p style="font-size:14px;font-weight:500;margin-bottom:4px">📥 Import from Azuga</p>
+        <p style="font-size:13px;color:var(--text-sec);margin-bottom:12px">Upload your weekly Azuga "Vehicles Report" XLS/XLSX file to sync odometer readings automatically.</p>
+        <input type="file" id="azuga-file-input" accept=".xls,.xlsx,.csv" style="display:none">
+        <button class="btn primary sm" onclick="document.getElementById('azuga-file-input').click()">📂 Choose Azuga File</button>
+        <div id="azuga-status" style="margin-top:10px;font-size:13px"></div>
+        <div id="azuga-preview" style="margin-top:10px"></div>
+      </div>
       <div class="card" style="border-left:3px solid var(--blue)">
         <p style="font-size:14px;font-weight:500;margin-bottom:4px">➕ Add Fleet Unit</p>
         <button class="btn primary sm" onclick="showScreen('screen-add')">+ Add Unit</button>
@@ -1083,7 +1091,7 @@ function switchTab(tab){
   if(tab==='history')renderAdminHistory();
   if(tab==='users')renderAdminUsers();
   if(tab==='export')initExport();
-  if(tab==='settings'){renderIntervalSettings();renderEscalationSettings();renderAdminEmailList();}
+  if(tab==='settings'){renderIntervalSettings();renderEscalationSettings();renderAdminEmailList();initAzugaImport();}
 }
 function renderAdmin(){
   const vf=getVisibleFleet();
@@ -1854,6 +1862,126 @@ async function removeDynamicAdmin(email){
     body:JSON.stringify({key:'admin_emails',value:updated})
   });
   renderAdminEmailList();
+}
+
+// ─── AZUGA IMPORT ────────────────────────────────────────────────────────────
+function initAzugaImport(){
+  const input=document.getElementById('azuga-file-input');
+  if(input&&!input._bound){
+    input._bound=true;
+    input.addEventListener('change',handleAzugaFile);
+  }
+}
+
+async function handleAzugaFile(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  const status=document.getElementById('azuga-status');
+  const preview=document.getElementById('azuga-preview');
+  status.innerHTML='<span style="color:var(--blue)">⟳ Reading file…</span>';
+  preview.innerHTML='';
+
+  try{
+    // Use SheetJS to read XLS/XLSX
+    const XLSX=await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
+    const data=await file.arrayBuffer();
+    const wb=XLSX.read(data,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+
+    // Find header row (contains "Vehicle")
+    let headerRow=-1;
+    for(let i=0;i<Math.min(rows.length,10);i++){
+      if(rows[i].includes('Vehicle')&&rows[i].includes('Odometer')){
+        headerRow=i; break;
+      }
+    }
+    if(headerRow===-1){status.innerHTML='<span style="color:var(--red)">❌ Could not find Vehicle/Odometer columns. Make sure this is an Azuga Vehicles Report.</span>';return;}
+
+    const headers=rows[headerRow];
+    const vehIdx=headers.indexOf('Vehicle');
+    const odoIdx=headers.indexOf('Odometer');
+    const groupIdx=headers.indexOf('Group');
+    const makeIdx=headers.indexOf('Make');
+    const modelIdx=headers.indexOf('Model');
+    const yearIdx=headers.indexOf('Year');
+    const vinIdx=headers.indexOf('Vin');
+    const lastTripIdx=headers.indexOf('Last TripEnd Time');
+
+    // Parse data rows
+    const updates=[];
+    for(let i=headerRow+1;i<rows.length;i++){
+      const row=rows[i];
+      const vehicleId=String(row[vehIdx]||'').trim();
+      const odo=parseInt(row[odoIdx])||0;
+      const group=String(row[groupIdx]||'').trim();
+      if(!vehicleId||!odo||vehicleId.length<4) continue;
+      // Strip _MRF, _Extra Device etc from group to get location code
+      const loc=group.replace(/_MRF$/,'').replace(/_.*$/,'').trim();
+      updates.push({
+        vehicleId, odo, loc,
+        make:String(row[makeIdx]||'').trim(),
+        model:String(row[modelIdx]||'').trim(),
+        year:String(row[yearIdx]||'').trim(),
+        vin:String(row[vinIdx]||'').trim(),
+        lastTrip:String(row[lastTripIdx]||'').trim()
+      });
+    }
+
+    if(!updates.length){status.innerHTML='<span style="color:var(--red)">❌ No valid vehicle data found.</span>';return;}
+
+    // Show preview
+    const matched=updates.filter(u=>fleet.find(f=>f.id===u.vehicleId));
+    const unmatched=updates.filter(u=>!fleet.find(f=>f.id===u.vehicleId));
+    
+    status.innerHTML=`<span style="color:var(--green)">✓ Found ${updates.length} vehicles — ${matched.length} match your fleet, ${unmatched.length} not in fleet.</span>`;
+    
+    preview.innerHTML=`
+      <div style="margin-top:12px">
+        <p style="font-weight:600;font-size:13px;margin-bottom:8px">Preview (${matched.length} will be updated):</p>
+        <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm)">
+          ${matched.slice(0,20).map(u=>{
+            const current=getOdo(u.vehicleId);
+            const changed=u.odo!==current.miles;
+            return`<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);font-size:13px;${changed?'':'opacity:.5'}">
+              <span><strong>${u.vehicleId}</strong> <span class="loc-tag">${u.loc}</span></span>
+              <span style="color:${changed?'var(--green)':'var(--text-sec)'}">${current.miles?current.miles.toLocaleString()+' → ':''}<strong>${u.odo.toLocaleString()} mi</strong>${changed?' ↑':' (no change)'}</span>
+            </div>`;
+          }).join('')}
+          ${matched.length>20?`<div style="padding:8px 10px;font-size:12px;color:var(--text-sec)">...and ${matched.length-20} more</div>`:''}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn primary sm" onclick="applyAzugaImport(${JSON.stringify(matched).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')})">✓ Apply Update (${matched.length} vehicles)</button>
+          <button class="btn sm" onclick="document.getElementById('azuga-preview').innerHTML='';document.getElementById('azuga-status').innerHTML=''">Cancel</button>
+        </div>
+      </div>`;
+
+  }catch(e){
+    status.innerHTML=`<span style="color:var(--red)">❌ Error reading file: ${e.message}</span>`;
+    console.error('Azuga import error:',e);
+  }
+  // Reset file input
+  e.target.value='';
+}
+
+async function applyAzugaImport(updates){
+  const status=document.getElementById('azuga-status');
+  const preview=document.getElementById('azuga-preview');
+  status.innerHTML='<span style="color:var(--blue)">⟳ Applying updates…</span>';
+  
+  let updated=0;
+  for(const u of updates){
+    const current=getOdo(u.vehicleId);
+    if(u.odo>current.miles){
+      setOdo(u.vehicleId,u.odo,'azuga');
+      updated++;
+    }
+  }
+  
+  preview.innerHTML='';
+  status.innerHTML=`<span style="color:var(--green)">✓ Updated ${updated} odometer readings from Azuga!</span>`;
+  renderFleet();updateOverdueBadge();
+  setTimeout(()=>{status.innerHTML='';},5000);
 }
 
 function renderAdminEmailList(){
