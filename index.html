@@ -2082,7 +2082,14 @@ async function applyEnterpriseImport(updates){
     if(!maintLog[u.vehicleId]) maintLog[u.vehicleId]={};
     // Only update if newer than existing record
     const existing=maintLog[u.vehicleId][u.maintId];
-    const newTs=u.completedDate&&u.completedDate!=='-'?new Date(u.completedDate).getTime():Date.now();
+    // Parse MM/DD/YYYY explicitly to avoid wrong year
+    let newTs=Date.now();
+    if(u.completedDate&&u.completedDate!=='-'&&u.completedDate!=''){
+      const p=u.completedDate.split('/');
+      if(p.length===3) newTs=new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1])).getTime();
+      else newTs=new Date(u.completedDate).getTime()||Date.now();
+    }
+    if(!newTs||isNaN(newTs)||newTs>9000000000000) newTs=Date.now();
     if(!existing||newTs>existing.ts){
       maintLog[u.vehicleId][u.maintId]={
         miles:u.odo,
