@@ -2082,14 +2082,19 @@ async function applyEnterpriseImport(updates){
     if(!maintLog[u.vehicleId]) maintLog[u.vehicleId]={};
     // Only update if newer than existing record
     const existing=maintLog[u.vehicleId][u.maintId];
-    // Parse MM/DD/YYYY explicitly to avoid wrong year
+    // Parse MM/DD/YYYY explicitly using UTC to avoid timezone issues
     let newTs=Date.now();
-    if(u.completedDate&&u.completedDate!=='-'&&u.completedDate!=''){
-      const p=u.completedDate.split('/');
-      if(p.length===3) newTs=new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1])).getTime();
-      else newTs=new Date(u.completedDate).getTime()||Date.now();
+    if(u.completedDate&&u.completedDate!=='-'&&u.completedDate.trim()!=''){
+      try{
+        const p=u.completedDate.trim().split('/');
+        if(p.length===3){
+          // Use UTC to avoid timezone shifts: YYYY-MM-DD
+          const iso=`${p[2].padStart(4,'0')}-${p[0].padStart(2,'0')}-${p[1].padStart(2,'0')}`;
+          const parsed=new Date(iso+'T12:00:00Z').getTime();
+          if(!isNaN(parsed)&&parsed>0) newTs=parsed;
+        }
+      }catch(ex){newTs=Date.now();}
     }
-    if(!newTs||isNaN(newTs)||newTs>9000000000000) newTs=Date.now();
     if(!existing||newTs>existing.ts){
       maintLog[u.vehicleId][u.maintId]={
         miles:u.odo,
