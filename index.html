@@ -2230,13 +2230,21 @@ function showQR(i){
 function downloadQR(){const c=document.getElementById('qr-canvas');const a=document.createElement('a');a.download='qr-'+getVisibleFleet()[currentQRUnit].id+'.png';a.href=c.toDataURL();a.click();}
 
 // ─── SCREEN NAV ───────────────────────────────────────────────────────────────
-function showScreen(id){
+function showScreen(id, pushState=true){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
   if(id==='screen-admin') renderAdmin();
   if(id==='screen-home') doRefresh();
+  // Push to browser history so back button works
+  if(pushState) history.pushState({screen:id}, '', window.location.pathname+'?screen='+id);
 }
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', function(e){
+  const screen=(e.state&&e.state.screen)||'screen-home';
+  showScreen(screen, false);
+});
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('load', function() {
