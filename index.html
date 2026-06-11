@@ -2037,7 +2037,7 @@ async function handleEnterpriseFile(e){
     const data=await file.arrayBuffer();
     const wb=XLSX.read(data,{type:'array'});
     const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false,dateNF:'MM/DD/YYYY'});
 
     if(!rows.length){status.innerHTML='<span style="color:var(--red)">❌ No data found in file.</span>';return;}
 
@@ -2120,22 +2120,24 @@ async function applyEnterpriseImport(updates){
     if(!maintLog[u.vehicleId]) maintLog[u.vehicleId]={};
     // Only update if newer than existing record
     const existing=maintLog[u.vehicleId][u.maintId];
-    // Parse MM/DD/YYYY explicitly using UTC to avoid timezone issues
+    // Parse date - handles MM/DD/YYYY string or Excel serial number
     let newTs=Date.now();
-    console.log('completedDate raw:',JSON.stringify(u.completedDate));
     if(u.completedDate&&u.completedDate!=='-'&&String(u.completedDate).trim()!=''){
       try{
         const dateStr=String(u.completedDate).trim();
         const p=dateStr.split('/');
-        console.log('date parts:',p);
         if(p.length===3){
+          // MM/DD/YYYY format
           const iso=`${p[2].padStart(4,'0')}-${p[0].padStart(2,'0')}-${p[1].padStart(2,'0')}`;
-          console.log('iso:',iso);
           const parsed=new Date(iso+'T12:00:00Z').getTime();
-          console.log('parsed ts:',parsed,'= ',new Date(parsed).toDateString());
           if(!isNaN(parsed)&&parsed>0) newTs=parsed;
+        } else if(!isNaN(Number(dateStr))&&Number(dateStr)>1000){
+          // Excel serial date: days since Dec 30, 1899
+          const serial=Number(dateStr);
+          const excelEpoch=new Date('1899-12-30T00:00:00Z').getTime();
+          newTs=excelEpoch+(serial*86400000);
         }
-      }catch(ex){console.error('date parse error:',ex);newTs=Date.now();}
+      }catch(ex){newTs=Date.now();}
     }
     if(!existing||newTs>existing.ts){
       maintLog[u.vehicleId][u.maintId]={
