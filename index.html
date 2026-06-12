@@ -2014,8 +2014,18 @@ function showAddEquipment(){
   document.getElementById('equip-notes').value='';
   document.getElementById('equip-interval').value='90';
   document.getElementById('equip-edit-id').value='';
-  if(!isAdmin) document.getElementById('equip-loc').disabled=true;
-  else document.getElementById('equip-loc').disabled=false;
+  const locSel=document.getElementById('equip-loc');
+  if(isAdmin){
+    locSel.disabled=false;
+  } else if(Array.isArray(userLocation)&&userLocation.length>1){
+    // Multi-location user — show only their locations
+    locSel.innerHTML='<option value="">Select location...</option>'+userLocation.map(l=>`<option value="${l}">${l}</option>`).join('');
+    locSel.disabled=false;
+  } else {
+    // Single location — lock it
+    locSel.value=Array.isArray(userLocation)?userLocation[0]:userLocation||'';
+    locSel.disabled=true;
+  }
   document.getElementById('equip-modal').style.display='flex';
   document.body.style.overflow='hidden';
 }
