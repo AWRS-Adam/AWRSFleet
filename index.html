@@ -540,6 +540,10 @@ textarea{resize:vertical}
     <button class="btn sm primary" id="add-equip-btn" style="display:none" onclick="showAddEquipment()">+ Add</button>
   </div>
   <div class="content">
+    <div class="search-wrap" style="margin-bottom:10px">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="equip-search" placeholder="Search equipment…" oninput="renderEquipment()">
+    </div>
     <div class="filter-row" style="margin-bottom:12px">
       <select id="equip-location-filter" onchange="renderEquipment()" style="padding:5px 10px;border:1px solid var(--border-med);border-radius:20px;background:var(--surface);color:var(--text-sec);font-size:13px">
         <option value="">📍 All Locations</option>
@@ -1925,9 +1929,11 @@ function renderEquipment(){
   const locF=document.getElementById('equip-location-filter')?.value||'';
   const statusF=document.getElementById('equip-status-filter')?.value||'';
   
+  const q=(document.getElementById('equip-search')?.value||'').toLowerCase().trim();
   let items=getVisibleEquipment();
   if(locF) items=items.filter(e=>e.location===locF);
   if(statusF) items=items.filter(e=>equipStatus(e)===statusF);
+  if(q) items=items.filter(e=>[e.name,e.location,e.notes].join(' ').toLowerCase().includes(q));
   
   // Sort: overdue first, then soon, then ok
   items.sort((a,b)=>{
