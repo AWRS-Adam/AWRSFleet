@@ -1183,7 +1183,7 @@ function maintStatus(unitId,itemId){
   const milesSince=currentMiles-lastMiles,daysSince=lastTs?Math.floor((Date.now()-lastTs)/86400000):9999;
   const milesLeft=intMiles-milesSince,daysLeft=intDays-daysSince;
   const pct=Math.max(Math.min(milesSince/intMiles,1),Math.min(daysSince/intDays,1));
-  const skipMiles=intMiles===0||(m&&m.dateOnly);
+  const skipMiles=intMiles===0||(maintItem&&maintItem.dateOnly);
   if(maintIntervals[itemId]&&maintIntervals[itemId].disabled) return {status:'disabled',milesLeft:0,daysLeft:0,milesSince:0,daysSince:0,pct:0,intMiles,intDays};
   let status='ok';if((!skipMiles&&milesLeft<=0)||daysLeft<=0)status='due';else if((!skipMiles&&milesLeft<=500)||daysLeft<=14)status='soon';
   return{status,milesLeft,daysLeft,milesSince,daysSince,pct,intMiles,intDays};
