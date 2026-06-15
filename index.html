@@ -1177,6 +1177,7 @@ function setOdo(unitId,miles,source){
 function getInterval(itemId,key){const def=MAINT_ITEMS.find(m=>m.id===itemId);return(maintIntervals[itemId]&&maintIntervals[itemId][key]!=null)?parseInt(maintIntervals[itemId][key]):def['default'+key.charAt(0).toUpperCase()+key.slice(1)];}
 function getLastMaint(unitId,itemId){return(maintLog[unitId]||{})[itemId]||null;}
 function maintStatus(unitId,itemId){
+  const maintItem=MAINT_ITEMS.find(x=>x.id===itemId);
   const odo=getOdo(unitId),last=getLastMaint(unitId,itemId);
   const intMiles=getInterval(itemId,'miles'),intDays=getInterval(itemId,'days');
   const currentMiles=odo.miles||0,lastMiles=last?last.miles:0,lastTs=last?last.ts:null;
