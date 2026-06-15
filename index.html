@@ -989,15 +989,15 @@ async function initApp(){
   // Render immediately with preloaded data so screen isn't blank
   renderFleet();updateOverdueBadge();
   try{
-    const [settingsRes,inspsRes,defectsRes,maintRes,odoRes]=await Promise.all([
-      sb.from('fi_settings').select('key,value'),
-      sb.from('fi_inspections').select('id,data').order('created_at',{ascending:false}).limit(2000),
-      sb.from('fi_defect_log').select('log_id,data'),
+    const [settings,insps,defects,maint,odo]=await Promise.all([
+      fetchFromSupabase('fi_settings','key,value'),
+      fetchFromSupabase('fi_inspections','id,data','created_at.desc',2000),
+      fetchFromSupabase('fi_defect_log','log_id,data'),
       fetchFromSupabase('fi_maint_log','unit_id,item_id,data'),
-      sb.from('fi_odometer').select('unit_id,data'),
+      fetchFromSupabase('fi_odometer','unit_id,data'),
     ]);
-    if(settingsRes.data){
-      const kv={};settingsRes.data.forEach(r=>{kv[r.key]=r.value;});
+    if(settings&&Array.isArray(settings)){
+      const kv={};settings.forEach(r=>{kv[r.key]=r.value;});
       if(kv['escalation']) escalationSettings=kv['escalation'];
       if(kv['maint_intervals']){
         maintIntervals=kv['maint_intervals'];
