@@ -835,12 +835,21 @@ async function doRefresh(){
   showSyncStatus('⟳ Refreshing…','loading');
   try{
     console.log('Starting refresh via REST API...');
-    const [insps,defects,odo,maint]=await Promise.all([
+    const [insps,defects,odo,maint,settings]=await Promise.all([
       fetchFromSupabase('fi_inspections','id,data','created_at.desc',2000),
       fetchFromSupabase('fi_defect_log','log_id,data'),
       fetchFromSupabase('fi_odometer','unit_id,data'),
       fetchFromSupabase('fi_maint_log','unit_id,item_id,data'),
+      fetchFromSupabase('fi_app_settings','key,value'),
     ]);
+    if(settings&&Array.isArray(settings)){
+      const kv={};settings.forEach(r=>{kv[r.key]=r.value;});
+      if(kv['maint_intervals']){
+        maintIntervals=kv['maint_intervals'];
+        Object.keys(maintIntervals).forEach(id=>{const m=maintIntervals[id];if(m&&m.name&&m.types&&!MAINT_ITEMS.find(x=>x.id===id)){MAINT_ITEMS.push({id,name:m.name,icon:m.icon||'🔧',defaultMiles:m.miles||0,defaultDays:m.days||90,types:m.types,custom:true});}});
+      }
+      if(kv['escalation']) escalationSettings=kv['escalation'];
+    }
     if(maint&&Array.isArray(maint)){maintLog={};maint.forEach(r=>{if(r.unit_id&&r.item_id){if(!maintLog[r.unit_id])maintLog[r.unit_id]={};maintLog[r.unit_id][r.item_id]=r.data;}});console.log('Refreshed maint log:',Object.keys(maintLog).length,'units');}
     console.log('Got inspections:',insps.length,'defects:',defects.length);
     inspections=insps.map(r=>r.data).filter(Boolean);
@@ -1174,10 +1183,11 @@ function setOdo(unitId,miles,source){
 }
 
 // ─── MAINTENANCE ──────────────────────────────────────────────────────────────
-function getInterval(itemId,key){const def=MAINT_ITEMS.find(m=>m.id===itemId);return(maintIntervals[itemId]&&maintIntervals[itemId][key]!=null)?parseInt(maintIntervals[itemId][key]):def['default'+key.charAt(0).toUpperCase()+key.slice(1)];}
+function getInterval(itemId,key){const def=MAINT_ITEMS.find(m=>m.id===itemId);if(!def)return 0;return(maintIntervals[itemId]&&maintIntervals[itemId][key]!=null)?parseInt(maintIntervals[itemId][key]):def['default'+key.charAt(0).toUpperCase()+key.slice(1)];}
 function getLastMaint(unitId,itemId){return(maintLog[unitId]||{})[itemId]||null;}
 function maintStatus(unitId,itemId){
   const maintItem=MAINT_ITEMS.find(x=>x.id===itemId);
+  if(!maintItem) return {status:'disabled',milesLeft:0,daysLeft:0,milesSince:0,daysSince:0,pct:0,intMiles:0,intDays:0};
   const odo=getOdo(unitId),last=getLastMaint(unitId,itemId);
   const intMiles=getInterval(itemId,'miles'),intDays=getInterval(itemId,'days');
   const currentMiles=odo.miles||0,lastMiles=last?last.miles:0,lastTs=last?last.ts:null;
