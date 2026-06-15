@@ -369,6 +369,15 @@ textarea{resize:vertical}
           </div>
         </div>
       </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:var(--text-hint)">Vehicle type:</span>
+        <select id="maint-type-select" onchange="changeUnitTypeFromMaint(this.value)" style="padding:4px 8px;font-size:13px;border:1px solid var(--border-med);border-radius:var(--radius-sm);background:var(--surface);color:var(--text)">
+          <option value="van">Van/Pickup</option>
+          <option value="heavy">Box Truck (10k+)</option>
+          <option value="trailer">Trailer</option>
+        </select>
+        <span style="font-size:11px;color:var(--text-hint)">Changes inspection form & maintenance items</span>
+      </div>
     </div>
     <div id="maint-items-list"></div>
   </div>
@@ -835,21 +844,12 @@ async function doRefresh(){
   showSyncStatus('⟳ Refreshing…','loading');
   try{
     console.log('Starting refresh via REST API...');
-    const [insps,defects,odo,maint,settings]=await Promise.all([
+    const [insps,defects,odo,maint]=await Promise.all([
       fetchFromSupabase('fi_inspections','id,data','created_at.desc',2000),
       fetchFromSupabase('fi_defect_log','log_id,data'),
       fetchFromSupabase('fi_odometer','unit_id,data'),
       fetchFromSupabase('fi_maint_log','unit_id,item_id,data'),
-      fetchFromSupabase('fi_app_settings','key,value'),
     ]);
-    if(settings&&Array.isArray(settings)){
-      const kv={};settings.forEach(r=>{kv[r.key]=r.value;});
-      if(kv['maint_intervals']){
-        maintIntervals=kv['maint_intervals'];
-        Object.keys(maintIntervals).forEach(id=>{const m=maintIntervals[id];if(m&&m.name&&m.types&&!MAINT_ITEMS.find(x=>x.id===id)){MAINT_ITEMS.push({id,name:m.name,icon:m.icon||'🔧',defaultMiles:m.miles||0,defaultDays:m.days||90,types:m.types,custom:true});}});
-      }
-      if(kv['escalation']) escalationSettings=kv['escalation'];
-    }
     if(maint&&Array.isArray(maint)){maintLog={};maint.forEach(r=>{if(r.unit_id&&r.item_id){if(!maintLog[r.unit_id])maintLog[r.unit_id]={};maintLog[r.unit_id][r.item_id]=r.data;}});console.log('Refreshed maint log:',Object.keys(maintLog).length,'units');}
     console.log('Got inspections:',insps.length,'defects:',defects.length);
     inspections=insps.map(r=>r.data).filter(Boolean);
@@ -1183,11 +1183,10 @@ function setOdo(unitId,miles,source){
 }
 
 // ─── MAINTENANCE ──────────────────────────────────────────────────────────────
-function getInterval(itemId,key){const def=MAINT_ITEMS.find(m=>m.id===itemId);if(!def)return 0;return(maintIntervals[itemId]&&maintIntervals[itemId][key]!=null)?parseInt(maintIntervals[itemId][key]):def['default'+key.charAt(0).toUpperCase()+key.slice(1)];}
+function getInterval(itemId,key){const def=MAINT_ITEMS.find(m=>m.id===itemId);return(maintIntervals[itemId]&&maintIntervals[itemId][key]!=null)?parseInt(maintIntervals[itemId][key]):def['default'+key.charAt(0).toUpperCase()+key.slice(1)];}
 function getLastMaint(unitId,itemId){return(maintLog[unitId]||{})[itemId]||null;}
 function maintStatus(unitId,itemId){
   const maintItem=MAINT_ITEMS.find(x=>x.id===itemId);
-  if(!maintItem) return {status:'disabled',milesLeft:0,daysLeft:0,milesSince:0,daysSince:0,pct:0,intMiles:0,intDays:0};
   const odo=getOdo(unitId),last=getLastMaint(unitId,itemId);
   const intMiles=getInterval(itemId,'miles'),intDays=getInterval(itemId,'days');
   const currentMiles=odo.miles||0,lastMiles=last?last.miles:0,lastTs=last?last.ts:null;
@@ -1237,6 +1236,8 @@ function openMaintScreen(unitIdx){
   const vf=getVisibleFleet();const u=vf[unitIdx];currentMaintUnit=u.id;
   document.getElementById('maint-title').textContent='Maintenance — '+u.id;
   document.getElementById('maint-sub').textContent=typeName(u.type)+(u.location?' · '+u.location:'');
+  const typeSel=document.getElementById('maint-type-select');
+  if(typeSel) typeSel.value=u.type||'van';
   const odo=getOdo(u.id);
   document.getElementById('maint-current-odo').textContent=odo.miles?odo.miles.toLocaleString()+' mi':'Not recorded';
   document.getElementById('maint-odo-source').textContent=odo.source==='inspection'?'From last inspection':odo.source==='manual'?'Manually entered':'';
@@ -1407,6 +1408,14 @@ async function renderAdminUsers(){
   }catch(e){c.innerHTML=`<div class="card"><p style="font-size:13px;color:var(--text-sec)">View and manage users in your <a href="https://supabase.com/dashboard/project/tlqxcpybsrolgsglwehr/auth/users" target="_blank" style="color:var(--blue)">Supabase Auth dashboard →</a></p></div>`;}
 }
 // ─── MAINTENANCE DETAIL PANEL ────────────────────────────────────────────────
+function changeUnitTypeFromMaint(newType){
+  const vf=getVisibleFleet();
+  const u=fleet.find(f=>f.id===currentMaintUnit);
+  if(!u) return;
+  const idx=vf.indexOf(u);
+  changeUnitType(idx>=0?idx:0, newType);
+}
+
 function changeUnitType(idx, newType){
   const vf=getVisibleFleet();
   const u=vf[idx];
