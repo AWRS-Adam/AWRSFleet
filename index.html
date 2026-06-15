@@ -2238,14 +2238,19 @@ function logEquipService(id){
   const item=equipment.find(e=>e.id===id);
   if(!item) return;
   const today=new Date().toISOString().split('T')[0];
-  const notes=prompt('Service notes (what was done):','')||'';
   document.getElementById('equip-name').value=item.name;
-  document.getElementById('equip-loc').value=item.location;
+  document.getElementById('equip-loc').value=item.location||'';
   document.getElementById('equip-last-date').value=today;
-  document.getElementById('equip-notes').value=notes;
+  document.getElementById('equip-notes').value='';
   document.getElementById('equip-interval').value=item.interval_days||'';
   document.getElementById('equip-edit-id').value=id;
+  document.getElementById('equip-is-extra').checked=item.is_extra||false;
   document.getElementById('equip-modal-title').textContent='Log Service — '+item.name;
+  // Populate unit dropdown with location's vehicles
+  populateEquipUnitDropdown(item.location||'');
+  document.getElementById('equip-unit').value=item.unit_id||'';
+  const locSel=document.getElementById('equip-loc');
+  locSel.onchange=()=>populateEquipUnitDropdown(locSel.value);
   document.getElementById('equip-modal').style.display='flex';
   document.body.style.overflow='hidden';
 }
